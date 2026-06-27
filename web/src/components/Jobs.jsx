@@ -4,9 +4,11 @@ import { useAsync, Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
 import BackupJobs from './BackupJobs.jsx';
+import RestoreJobs from './RestoreJobs.jsx';
 
 const TABS = [
   { key: 'backups', label: 'Copias de seguridad' },
+  { key: 'restore', label: 'Restauraciones' },
   { key: 'prune', label: 'Prune (PBS)' },
   { key: 'verify', label: 'Verificación (PBS)' },
   { key: 'sync', label: 'Sincronización (PBS)' },
@@ -88,7 +90,7 @@ export default function Jobs() {
           <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{tr(t.label)}</button>
         ))}
       </div>
-      {tab === 'backups' ? <BackupJobs /> : <PbsJobs kind={tab} />}
+      {tab === 'backups' ? <BackupJobs /> : tab === 'restore' ? <RestoreJobs /> : <PbsJobs kind={tab} />}
     </div>
   );
 }

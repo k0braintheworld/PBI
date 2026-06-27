@@ -287,6 +287,7 @@ function NotifySettings() {
   useEffect(() => {
     api.notifyGet().then((c) => setForm({
       enabled: c.enabled, notifyOk: c.notifyOk, notifyFail: c.notifyFail,
+      notifyRestore: c.notifyRestore !== false,
       silenceProxmox: !!c.silenceProxmox,
       types: c.types || [], hasPass: c.smtp?.hasPass,
       smtp: { host: c.smtp?.host || '', port: c.smtp?.port || 587, secure: !!c.smtp?.secure, user: c.smtp?.user || '', pass: '', from: c.smtp?.from || '', to: c.smtp?.to || '' },
@@ -301,7 +302,7 @@ function NotifySettings() {
   const toggleType = (t) => setForm((f) => ({ ...f, types: f.types.includes(t) ? f.types.filter((x) => x !== t) : [...f.types, t] }));
 
   function payload() {
-    const body = { enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, types: form.types, smtp: { ...form.smtp } };
+    const body = { enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, notifyRestore: form.notifyRestore, types: form.types, smtp: { ...form.smtp } };
     if (!body.smtp.pass) delete body.smtp.pass; // conservar la guardada
     return body;
   }
@@ -345,6 +346,9 @@ function NotifySettings() {
           </label>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input type="checkbox" checked={form.notifyFail} onChange={(e) => set('notifyFail', e.target.checked)} /><span className="muted">{tr('Avisar de fallos')}</span>
+          </label>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={form.notifyRestore} onChange={(e) => set('notifyRestore', e.target.checked)} /><span className="muted">{tr('Avisar de restauraciones')}</span>
           </label>
         </div>
 

@@ -110,6 +110,61 @@ export function buildTaskEmail(task, { hostName, names = {} } = {}) {
   return { subject, html, text };
 }
 
+/** Construye {subject, html, text} para una restauración de VM/CT finalizada. */
+export function buildRestoreEmail(info, result) {
+  const ok = result.exitstatus === 'OK';
+  const st = ok
+    ? { label: 'Correcta', color: '#157a42', bg: '#e6f4ec', icon: '✓', emoji: '✅' }
+    : { label: 'Fallida', color: '#b62a25', bg: '#fae9e8', icon: '✕', emoji: '❌' };
+  const kind = info.kind === 'scheduled' ? 'Programada' : 'Manual';
+  const tgt = `${(info.type === 'lxc' ? 'CT' : 'VM')} ${info.targetVmid}`;
+  const subject = `[PBI] ${st.emoji} Restauración ${st.label.toLowerCase()} · ${tgt}${info.jobName ? ` · ${info.jobName}` : ''}`;
+
+  const html = `<!doctype html><html><body style="margin:0;background:#eef1f5;padding:24px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
+      <tr><td style="background:${st.bg};padding:18px 22px;border-bottom:3px solid ${st.color}">
+        <div style="font-size:13px;color:${st.color};font-weight:600;letter-spacing:.4px;text-transform:uppercase">PBI · Restauración (${kind})</div>
+        <div style="font-size:20px;color:#1b2430;font-weight:600;margin-top:4px">
+          <span style="display:inline-block;width:22px;height:22px;line-height:22px;text-align:center;border-radius:50%;background:${st.color};color:#fff;font-size:13px;margin-right:8px">${st.icon}</span>
+          Restauración ${st.label.toLowerCase()}
+        </div>
+      </td></tr>
+      <tr><td style="padding:6px 8px 14px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          ${row('Estado', `<span style="color:${st.color}">${st.label}</span>`)}
+          ${row('Destino', `${tgt}${info.node ? ` · nodo ${escapeHtml(info.node)}` : ''}`)}
+          ${info.sourceVmid && info.sourceVmid !== info.targetVmid ? row('Origen', `VM ${escapeHtml(info.sourceVmid)}`) : ''}
+          ${row('Punto de restauración', `<span style="font-family:monospace;font-size:12px">${escapeHtml(info.point || '—')}</span>${info.ctime ? ` · ${fmtDate(info.ctime)}` : ''}`)}
+          ${row('Servidor PVE', escapeHtml(info.pveName || '—'))}
+          ${info.jobName ? row('Trabajo', escapeHtml(info.jobName)) : ''}
+          ${row('Inicio', fmtDate(result.start))}
+          ${row('Fin', fmtDate(result.end))}
+          ${row('Duración', fmtDur(result.start, result.end))}
+          ${row('Resultado', `<code style="font-size:12px;color:${ok ? '#1b2430' : st.color}">${escapeHtml(result.exitstatus || '—')}</code>`)}
+        </table>
+      </td></tr>
+      <tr><td style="padding:12px 22px;background:#f7f9fc;border-top:1px solid #eef1f5;color:#8b95a3;font-size:11.5px">
+        Enviado por PBI · ${fmtDate(Math.floor(Date.now() / 1000))}
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+
+  const text = [
+    `PBI — Restauración ${st.label} (${kind})`,
+    `Destino:   ${tgt}${info.node ? ` · nodo ${info.node}` : ''}`,
+    `Punto:     ${info.point || '—'}`,
+    `Servidor:  ${info.pveName || '—'}`,
+    info.jobName ? `Trabajo:   ${info.jobName}` : '',
+    `Inicio:    ${fmtDate(result.start)}`,
+    `Fin:       ${fmtDate(result.end)}`,
+    `Duración:  ${fmtDur(result.start, result.end)}`,
+    `Resultado: ${result.exitstatus || '—'}`,
+  ].filter(Boolean).join('\n');
+
+  return { subject, html, text };
+}
+
 /** Email de prueba. */
 export function buildTestEmail({ hostName } = {}) {
   const sample = {
