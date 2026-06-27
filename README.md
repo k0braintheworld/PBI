@@ -14,6 +14,10 @@ en el primer arranque se crea la cuenta de administrador. Los servidores PBS se 
 alta de forma **persistente** desde la sección **Configuración**, y se elige el **host
 activo** desde el selector de la barra superior.
 
+La interfaz está disponible en **español e inglés**: un selector **ES/EN** en la barra
+lateral cambia todo el idioma al vuelo (detecta el del navegador en el primer arranque y
+recuerda tu elección).
+
 ## Capturas y ejemplos
 
 ### Informes y notificaciones
