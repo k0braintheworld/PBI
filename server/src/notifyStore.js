@@ -18,6 +18,7 @@ const DEFAULTS = {
   enabled: false,
   notifyOk: true,
   notifyFail: true,
+  notifyRestore: true,
   silenceProxmox: false,
   types: ['backup', 'verify', 'prune', 'sync', 'garbage_collection'],
   smtp: { host: '', port: 587, secure: false, user: '', pass: '', from: '', to: '' },

@@ -14,12 +14,15 @@ import { hostsRouter } from './routes/hosts.js';
 import { pveRouter } from './routes/pve.js';
 import { notifyRouter } from './routes/notify.js';
 import { reportRouter } from './routes/report.js';
+import { restoreJobsRouter } from './routes/restoreJobs.js';
 import { apiRouter } from './routes/api.js';
 import { startNotifier } from './notifier.js';
 import { migrateSecrets as migrateHostSecrets } from './hostStore.js';
 import { migrateSecrets as migratePveSecrets } from './pveStore.js';
 import { migrateSecrets as migrateNotifySecrets } from './notifyStore.js';
 import { startReportScheduler } from './reportScheduler.js';
+import { startRestoreWatcher } from './restoreWatcher.js';
+import { startRestoreScheduler } from './restoreScheduler.js';
 
 const app = express();
 
@@ -54,6 +57,7 @@ app.use('/api/hosts', hostsRouter);
 app.use('/api/pve', pveRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/report', reportRouter);
+app.use('/api/restore-jobs', restoreJobsRouter);
 app.use('/api', apiRouter);
 
 // Frontend compilado (producción): sirve web/dist y hace fallback SPA a index.html
@@ -85,4 +89,6 @@ server.listen(config.port, () => {
   try { migrateHostSecrets(); migratePveSecrets(); migrateNotifySecrets(); } catch (e) { console.warn('Aviso: migración de secretos:', e.message); }
   startNotifier();
   startReportScheduler();
+  startRestoreWatcher();
+  startRestoreScheduler();
 });

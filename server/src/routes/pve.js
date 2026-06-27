@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as store from '../pveStore.js';
 import * as pve from '../pveService.js';
 import { pveStream } from '../pveClient.js';
+import * as restoreStore from '../restoreStore.js';
 
 export const pveRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -70,6 +71,15 @@ pveRouter.post('/:id/restore', wrap(async (req, res) => {
     return res.status(400).json({ error: 'Faltan node, vmid o archive' });
   }
   const upid = await pve.pveRestore(h, { node, type, vmid, archive, storage, force, start });
+  // Vigilar la tarea para notificar por email al terminar
+  try {
+    restoreStore.addWatch({
+      pveId: req.params.id, upid, node, type: type === 'lxc' ? 'lxc' : 'vm', kind: 'manual',
+      pveName: h.name, sourceVmid: String(vmid), targetVmid: String(vmid),
+      point: archive, ctime: null,
+      startedAt: Math.floor(Date.now() / 1000), startedBy: req.user?.username || '',
+    });
+  } catch { /* la notificación es best-effort */ }
   res.json({ upid });
 }));
 

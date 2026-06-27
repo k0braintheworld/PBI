@@ -111,6 +111,13 @@ export const api = {
   pveFileList: (id, params) => req('GET', `/pve/${id}/file-restore/list?${new URLSearchParams(params)}`),
   pveFileDownloadUrl: (id, params) => `/api/pve/${id}/file-restore/download?${new URLSearchParams(params)}`,
 
+  // Restauraciones programadas
+  restoreJobs: () => req('GET', '/restore-jobs'),
+  restoreJobCreate: (body) => req('POST', '/restore-jobs', body),
+  restoreJobUpdate: (id, body) => req('PUT', `/restore-jobs/${id}`, body),
+  restoreJobDelete: (id) => req('DELETE', `/restore-jobs/${id}`),
+  restoreJobRun: (id) => req('POST', `/restore-jobs/${id}/run`),
+
   // Limpieza
   cleanupGroups: () => req('GET', '/cleanup/groups'),
   cleanupDeleteGroup: (body) => req('POST', '/cleanup/delete-group', body),
