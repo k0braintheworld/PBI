@@ -616,4 +616,7 @@ export const EN = {
   'Indica la VMID destino': 'Enter the target VMID',
   'Selecciona el almacenamiento de backups y el de destino': 'Select the backup storage and the target storage',
   'Indica la fecha y hora de la restauración puntual': 'Enter the date and time of the one-off restore',
+  '¿Lanzar ahora la copia de seguridad': 'Run the backup now',
+  'Copia lanzada.': 'Backup started.',
+  'Tarea:': 'Task:',
 };

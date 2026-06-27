@@ -103,6 +103,7 @@ export const api = {
   pveBackupJobs: (id) => req('GET', `/pve/${id}/backup-jobs`),
   pveGuests: (id) => req('GET', `/pve/${id}/guests`),
   pveCreateBackupJob: (id, body) => req('POST', `/pve/${id}/backup-jobs`, body),
+  pveRunBackupJob: (id, jobid) => req('POST', `/pve/${id}/backup-jobs/${encodeURIComponent(jobid)}/run`),
   pveUpdateBackupJob: (id, jobid, body) => req('PUT', `/pve/${id}/backup-jobs/${encodeURIComponent(jobid)}`, body),
   pveDeleteBackupJob: (id, jobid) => req('DELETE', `/pve/${id}/backup-jobs/${encodeURIComponent(jobid)}`),
   pveRestore: (id, body) => req('POST', `/pve/${id}/restore`, body),

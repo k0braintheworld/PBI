@@ -72,6 +72,17 @@ export default function BackupJobs() {
     catch (e) { setMsg(`Error: ${e.message}`); }
   }
 
+  async function run(job) {
+    if (!(await confirmDialog({ message: `${tr('¿Lanzar ahora la copia de seguridad')} «${job.comment || job.id}»?`, confirmLabel: tr('Lanzar') }))) return;
+    setMsg(null);
+    try {
+      const r = await api.pveRunBackupJob(pveId, job.id);
+      const upids = (r.results || []).filter((x) => x.upid).map((x) => x.upid);
+      const errs = (r.results || []).filter((x) => x.error);
+      setMsg(`${tr('Copia lanzada.')}${upids.length ? ` ${tr('Tarea:')} ${upids.join(', ')}` : ''}${errs.length ? ` · ${errs.map((e) => `${e.node}: ${e.error}`).join('; ')}` : ''}`);
+    } catch (e) { setMsg(`Error: ${e.message}`); }
+  }
+
   if (pveList === null) return <Loading />;
   if (!pveList.length) {
     return <div className="card card-pad muted">{tr('Añade una conexión Proxmox VE en Configuración para gestionar los trabajos de copia.')}</div>;
@@ -121,6 +132,7 @@ export default function BackupJobs() {
                   <td>{j.enabled ? <span className="badge ok">{tr('activo')}</span> : <span className="badge muted">{tr('deshabilitado')}</span>}</td>
                   <td>
                     <div className="btn-row" style={{ flexWrap: 'nowrap' }}>
+                      <button className="btn sm" onClick={() => run(j)} title={tr('Lanzar ahora')}><Icon.play width={13} height={13} /></button>
                       <button className="btn sm ghost" onClick={() => setEditing(j)}>{tr('Editar')}</button>
                       <button className="btn sm ghost danger" onClick={() => remove(j)}>{tr('Eliminar')}</button>
                     </div>
