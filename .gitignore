@@ -11,6 +11,3 @@ data/
 packaging/build/
 packaging/dist/
 *.deb
-
-# Config local del editor
-.claude/
