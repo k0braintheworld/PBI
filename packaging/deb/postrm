@@ -1,0 +1,17 @@
+#!/bin/sh
+set -e
+
+# Limpiar binarios siempre que se elimina
+if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
+  rm -rf /opt/pbi
+fi
+
+# En purge, eliminar tambien datos, configuracion y usuario
+if [ "$1" = "purge" ]; then
+  rm -rf /var/lib/pbi /etc/pbi
+  deluser --system pbi >/dev/null 2>&1 || true
+fi
+
+systemctl daemon-reload >/dev/null 2>&1 || true
+
+exit 0

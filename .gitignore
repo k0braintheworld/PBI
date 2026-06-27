@@ -1,0 +1,16 @@
+node_modules/
+dist/
+.env
+.env.local
+*.log
+.DS_Store
+coverage/
+data/
+
+# Artefactos de empaquetado
+packaging/build/
+packaging/dist/
+*.deb
+
+# Config local del editor
+.claude/

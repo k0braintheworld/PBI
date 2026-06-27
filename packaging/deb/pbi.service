@@ -1,0 +1,25 @@
+[Unit]
+Description=PBI - Proxmox Backup Interface
+Documentation=https://192.168.86.9
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pbi
+Group=pbi
+EnvironmentFile=/etc/pbi/pbi.env
+WorkingDirectory=/opt/pbi/server
+ExecStart=/opt/pbi/runtime/bin/node /opt/pbi/server/src/index.js
+Restart=on-failure
+RestartSec=5
+
+# Endurecimiento básico
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+ReadWritePaths=/var/lib/pbi
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
