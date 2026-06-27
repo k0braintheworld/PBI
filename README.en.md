@@ -96,11 +96,16 @@ your choice and detects the browser language the first time.
 
 ## 🖼️ Screenshots & examples
 
-Examples generated with fictitious data by PBI's own engine (open them in a browser to
-see exactly what the tool produces/sends):
+Examples generated with fictitious data by PBI's own engine. GitHub shows `.html` files
+as source code; to see them **rendered**, use the "view" links:
 
-- 📄 **Monthly backup report** — [HTML](docs/examples/informe-mensual.html) · [PDF](docs/examples/informe-mensual.pdf)
-- ✉️ **Email notification** — [successful backup](docs/examples/notificacion-correcta.html) · [failed backup](docs/examples/notificacion-fallo.html)
+- 📄 **Monthly backup report** — [view PDF](docs/examples/informe-mensual.pdf) · [view HTML](https://htmlpreview.github.io/?https://github.com/k0braintheworld/PBI/blob/main/docs/examples/informe-mensual.html)
+- ✉️ **Email notification** — [successful backup](https://htmlpreview.github.io/?https://github.com/k0braintheworld/PBI/blob/main/docs/examples/notificacion-correcta.html) · [failed backup](https://htmlpreview.github.io/?https://github.com/k0braintheworld/PBI/blob/main/docs/examples/notificacion-fallo.html)
+
+> The PDF renders natively on GitHub. The "view HTML" links use
+> [htmlpreview.github.io](https://htmlpreview.github.io); as a permanent alternative you
+> can enable **GitHub Pages** on the repository. You can also download the HTML files and
+> open them in your browser.
 
 Screenshots go in `docs/screenshots/` (see the [guide](docs/screenshots/README.md)). Once
 added, uncomment this block:

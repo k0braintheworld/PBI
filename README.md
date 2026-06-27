@@ -99,11 +99,16 @@ y detecta el idioma del navegador la primera vez.
 
 ## 🖼️ Capturas y ejemplos
 
-Ejemplos generados con datos ficticios por el propio motor de PBI (ábrelos en el
-navegador para verlos tal cual los produce/envía la herramienta):
+Ejemplos generados con datos ficticios por el propio motor de PBI. GitHub muestra los
+`.html` como código fuente; para verlos **renderizados** usa los enlaces de «ver»:
 
-- 📄 **Informe mensual de copias** — [HTML](docs/examples/informe-mensual.html) · [PDF](docs/examples/informe-mensual.pdf)
-- ✉️ **Notificación por email** — [copia correcta](docs/examples/notificacion-correcta.html) · [copia fallida](docs/examples/notificacion-fallo.html)
+- 📄 **Informe mensual de copias** — [ver PDF](docs/examples/informe-mensual.pdf) · [ver HTML](https://htmlpreview.github.io/?https://github.com/k0braintheworld/PBI/blob/main/docs/examples/informe-mensual.html)
+- ✉️ **Notificación por email** — [copia correcta](https://htmlpreview.github.io/?https://github.com/k0braintheworld/PBI/blob/main/docs/examples/notificacion-correcta.html) · [copia fallida](https://htmlpreview.github.io/?https://github.com/k0braintheworld/PBI/blob/main/docs/examples/notificacion-fallo.html)
+
+> El PDF se renderiza nativo en GitHub. Los enlaces «ver HTML» usan
+> [htmlpreview.github.io](https://htmlpreview.github.io); como alternativa permanente
+> puedes activar **GitHub Pages** en el repositorio. También puedes descargar los HTML y
+> abrirlos en tu navegador.
 
 Las capturas de pantalla se colocan en `docs/screenshots/` (ver la
 [guía](docs/screenshots/README.md)). Una vez añadidas, descomenta este bloque:
