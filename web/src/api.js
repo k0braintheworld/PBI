@@ -1,4 +1,5 @@
 // Cliente de la API del backend PBI (Proxmox Backup Interface).
+import { moduleLang } from './i18n.jsx';
 
 // --- Host activo (persistente en el navegador) ---
 let activeHostId = localStorage.getItem('pbs.activeHost') || '';
@@ -157,22 +158,24 @@ export function fmtBytes(n) {
 
 export function fmtDate(epoch) {
   if (!epoch) return '—';
-  return new Date(epoch * 1000).toLocaleString('es-ES');
+  return new Date(epoch * 1000).toLocaleString(moduleLang() === 'en' ? 'en-GB' : 'es-ES');
 }
 
 export function fmtAgo(epoch) {
   if (!epoch) return '—';
+  const en = moduleLang() === 'en';
   const s = Math.floor(Date.now() / 1000) - epoch;
-  if (s < 60) return 'hace segundos';
-  if (s < 3600) return `hace ${Math.floor(s / 60)} min`;
-  if (s < 86400) return `hace ${Math.floor(s / 3600)} h`;
+  if (s < 60) return en ? 'seconds ago' : 'hace segundos';
+  if (s < 3600) return en ? `${Math.floor(s / 60)} min ago` : `hace ${Math.floor(s / 60)} min`;
+  if (s < 86400) return en ? `${Math.floor(s / 3600)} h ago` : `hace ${Math.floor(s / 3600)} h`;
   const d = Math.floor(s / 86400);
+  if (en) return d === 1 ? '1 day ago' : `${d} days ago`;
   return d === 1 ? 'hace 1 día' : `hace ${d} días`;
 }
 
 export function fmtDuration(start, end) {
   if (!start) return '—';
-  if (!end) return 'en curso';
+  if (!end) return moduleLang() === 'en' ? 'in progress' : 'en curso';
   const s = end - start;
   if (s < 60) return `${s}s`;
   if (s < 3600) return `${Math.floor(s / 60)}m ${s % 60}s`;
