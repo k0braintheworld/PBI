@@ -3,9 +3,11 @@ import { api, fmtBytes, fmtDate, fmtAgo } from '../api.js';
 import { useAsync, Loading, ErrorBox, VerifyBadge } from './common.jsx';
 import { useGuestNames } from '../guestNames.js';
 import { Icon } from './icons.jsx';
+import { useT } from '../i18n.jsx';
 
 /** Explorador de backups: selecciona datastore y lista sus snapshots. */
 export default function Backups() {
+  const t = useT();
   const ds = useAsync(() => api.datastores(), []);
   const names = useGuestNames();
   const [store, setStore] = useState(null);
@@ -16,7 +18,7 @@ export default function Backups() {
 
   if (ds.loading) return <Loading />;
   if (ds.error) return <ErrorBox error={ds.error} />;
-  if (!ds.data.length) return <div className="card card-pad muted">No hay datastores en este servidor.</div>;
+  if (!ds.data.length) return <div className="card card-pad muted">{t('No hay datastores en este servidor.')}</div>;
 
   const all = snaps.data || [];
   const rows = all.filter((s) => {
@@ -37,14 +39,14 @@ export default function Backups() {
             <button key={d.store} className={active === d.store ? 'active' : ''} onClick={() => setStore(d.store)}>{d.store}</button>
           ))}
         </div>
-        <a className="btn sm" href={api.csvUrl('snapshots', active)}><Icon.download width={14} height={14} /> Exportar CSV</a>
+        <a className="btn sm" href={api.csvUrl('snapshots', active)}><Icon.download width={14} height={14} /> {t('Exportar CSV')}</a>
       </div>
 
       <div className="grid cols-4" style={{ marginBottom: 16 }}>
         <MiniStat label="Snapshots" value={all.length} />
-        <MiniStat label="Grupos" value={groups} />
-        <MiniStat label="Tamaño total" value={fmtBytes(totalSize)} />
-        <MiniStat label="Verif. con fallo" value={failed} tone={failed ? 'err' : 'ok'} />
+        <MiniStat label={t('Grupos')} value={groups} />
+        <MiniStat label={t('Tamaño total')} value={fmtBytes(totalSize)} />
+        <MiniStat label={t('Verif. con fallo')} value={failed} tone={failed ? 'err' : 'ok'} />
       </div>
 
       <div className="card">
@@ -53,7 +55,7 @@ export default function Backups() {
           <input
             className="input"
             style={{ maxWidth: 280 }}
-            placeholder="Filtrar por id, propietario, comentario…"
+            placeholder={t('Filtrar por id, propietario, comentario…')}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -67,8 +69,8 @@ export default function Backups() {
           <table>
             <thead>
               <tr>
-                <th>Tipo</th><th>ID</th><th>Fecha</th><th className="num">Tamaño</th>
-                <th>Propietario</th><th>Verificación</th><th>Comentario</th>
+                <th>{t('Tipo')}</th><th>ID</th><th>{t('Fecha')}</th><th className="num">{t('Tamaño')}</th>
+                <th>{t('Propietario')}</th><th>{t('Verificación')}</th><th>{t('Comentario')}</th>
               </tr>
             </thead>
             <tbody>
@@ -90,7 +92,7 @@ export default function Backups() {
               ))}
               {!rows.length && (
                 <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 28 }}>
-                  {all.length ? 'Ningún snapshot coincide con el filtro' : 'Sin snapshots en este datastore'}
+                  {all.length ? t('Ningún snapshot coincide con el filtro') : t('Sin snapshots en este datastore')}
                 </td></tr>
               )}
             </tbody>

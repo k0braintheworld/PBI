@@ -14,6 +14,7 @@ import Settings from './components/Settings.jsx';
 import About from './components/About.jsx';
 import Login from './components/Login.jsx';
 import { APP_VERSION, APP_COPYRIGHT, APP_TAGLINE } from './version.js';
+import { useT, LangSwitch } from './i18n.jsx';
 
 const NAV = [
   { key: 'dashboard', label: 'Información general', icon: 'dashboard' },
@@ -40,6 +41,7 @@ const TITLES = {
 };
 
 export default function App() {
+  const t = useT();
   const [auth, setAuth] = useState(undefined); // undefined=cargando
 
   const refresh = useCallback(() => {
@@ -58,7 +60,7 @@ export default function App() {
   }
 
   if (auth === undefined) {
-    return <div className="spinner" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Cargando…</div>;
+    return <div className="spinner" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>{t('Cargando…')}</div>;
   }
   if (!auth.authenticated) {
     return <Login needsSetup={auth.needsSetup} onDone={() => refresh()} />;
@@ -67,6 +69,7 @@ export default function App() {
 }
 
 function AppShell({ user, onLogout }) {
+  const t = useT();
   const [hosts, setHosts] = useState(undefined); // undefined=cargando
   const [activeId, setActiveId] = useState(getActiveHost());
   const [view, setView] = useState('dashboard');
@@ -94,7 +97,7 @@ function AppShell({ user, onLogout }) {
   }
 
   if (hosts === undefined) {
-    return <div className="spinner" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>Cargando…</div>;
+    return <div className="spinner" style={{ minHeight: '100vh', display: 'grid', placeItems: 'center' }}>{t('Cargando…')}</div>;
   }
 
   const noHosts = hosts.length === 0;
@@ -113,7 +116,7 @@ function AppShell({ user, onLogout }) {
             <small>{APP_TAGLINE}</small>
           </div>
         </div>
-        <div className="nav-section">Gestión</div>
+        <div className="nav-section">{t('Gestión')}</div>
         {NAV.map((n) => {
           const I = Icon[n.icon];
           return (
@@ -123,26 +126,27 @@ function AppShell({ user, onLogout }) {
               onClick={() => setView(n.key)}
               disabled={noHosts && n.key !== 'settings'}
             >
-              <I /> {n.label}
+              <I /> {t(n.label)}
             </button>
           );
         })}
         <div className="nav-spacer" />
-        <div className="nav-section">Servidor activo</div>
+        <div className="nav-section">{t('Servidor activo')}</div>
         <div style={{ padding: '0 8px', color: 'var(--sb-text)', fontSize: 12 }}>
           {activeHost ? (
             <>
               <div style={{ color: '#cfd8e4', fontWeight: 500 }}>{activeHost.name}</div>
               <div className="mono" style={{ fontSize: 11, opacity: .7, wordBreak: 'break-all' }}>{activeHost.host}</div>
             </>
-          ) : <span style={{ opacity: .6 }}>sin configurar</span>}
+          ) : <span style={{ opacity: .6 }}>{t('sin configurar')}</span>}
         </div>
-        <div className="nav-section">Sesión</div>
+        <div className="nav-section">{t('Sesión')}</div>
         <div style={{ padding: '0 8px 6px', fontSize: 12 }}>
           <span style={{ color: '#cfd8e4', fontWeight: 500 }}>{user.username}</span>
-          <span style={{ color: 'var(--sb-text)' }}> · {user.role === 'admin' ? 'admin' : 'operador'}</span>
+          <span style={{ color: 'var(--sb-text)' }}> · {user.role === 'admin' ? t('admin') : t('operador')}</span>
         </div>
-        <button className="nav-item" onClick={onLogout}><Icon.x /> Cerrar sesión</button>
+        <button className="nav-item" onClick={onLogout}><Icon.x /> {t('Cerrar sesión')}</button>
+        <div style={{ padding: '8px 8px 0', display: 'flex', justifyContent: 'center' }}><LangSwitch /></div>
         <button onClick={() => setView('about')} style={{ background: 'none', border: 'none', color: 'var(--sb-text)', opacity: .65, fontSize: 10.5, textAlign: 'center', cursor: 'pointer', padding: '8px 4px 2px', width: '100%' }}>
           {APP_COPYRIGHT} · GPLv3 · v{APP_VERSION}
         </button>
@@ -151,18 +155,18 @@ function AppShell({ user, onLogout }) {
       <main className="main">
         <div className="topbar">
           <div>
-            <h1>{TITLES[effectiveView]}</h1>
+            <h1>{t(TITLES[effectiveView])}</h1>
             <div className="sub">
-              {activeHost ? <>Conectado a <b>{activeHost.host}</b> · servidor PBS <b>{activeHost.node}</b></> : 'Sin host seleccionado'}
+              {activeHost ? <>{t('Conectado a')} <b>{activeHost.host}</b> · {t('servidor PBS')} <b>{activeHost.node}</b></> : t('Sin host seleccionado')}
             </div>
           </div>
           {!noHosts && (
             <div className="field" style={{ margin: 0, minWidth: 230 }}>
-              <label style={{ fontSize: 11 }}>Host activo</label>
+              <label style={{ fontSize: 11 }}>{t('Host activo')}</label>
               <select value={activeId} onChange={(e) => changeHost(e.target.value)}>
                 {hosts.map((h) => (
                   <option key={h.id} value={h.id}>
-                    {h.name}{h.isDefault ? ' (por defecto)' : ''}
+                    {h.name}{h.isDefault ? ` (${t('por defecto')})` : ''}
                   </option>
                 ))}
               </select>
@@ -173,7 +177,7 @@ function AppShell({ user, onLogout }) {
         <div className="content">
           {noHosts && (
             <div className="banner">
-              👋 Bienvenido. Aún no hay ningún servidor PBS configurado. Añade tu primer host para empezar.
+              {t('👋 Bienvenido. Aún no hay ningún servidor PBS configurado. Añade tu primer host para empezar.')}
             </div>
           )}
 

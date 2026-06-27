@@ -168,12 +168,14 @@ export function renderPdf(r) {
       y += 28;
     }
     for (const m of r.vms) {
-      if (y + 20 > bottom) { doc.addPage(); y = 50; drawHeader(); }
       const snap = r.lastSnap.get(String(m.vmid));
       const verify = snap?.verification?.state;
       const name = r.names[String(m.vmid)] ? ` · ${r.names[String(m.vmid)]}` : '';
-      let x = M;
+      // Altura de fila dinámica según el nombre de la máquina (evita solapes)
       doc.font('Helvetica').fontSize(9.5);
+      const rowH = Math.max(20, doc.heightOfString(`${m.vmid}${name}`, { width: cols[0].w - 12 }) + 8);
+      if (y + rowH > bottom) { doc.addPage(); y = 50; drawHeader(); }
+      let x = M;
       // Máquina
       doc.fillColor(C.text).font('Helvetica-Bold').text(String(m.vmid), x + 8, y + 6, { width: cols[0].w - 12, continued: true })
         .fillColor(C.muted).font('Helvetica').text(name, { width: cols[0].w - 12 });
@@ -194,7 +196,7 @@ export function renderPdf(r) {
       const vTxt = verify === 'ok' ? 'verificado' : verify === 'failed' ? 'fallido' : 'sin verif.';
       const vCol = verify === 'ok' ? C.ok : verify === 'failed' ? C.err : C.muted;
       doc.fillColor(vCol).fontSize(8.5).text(vTxt, x + 8, y + 6.5, { width: cols[5].w - 10 });
-      y += 20;
+      y += rowH;
       doc.moveTo(M, y).lineTo(M + CW, y).strokeColor(C.line).lineWidth(0.5).stroke();
     }
     y += 14;
@@ -222,21 +224,30 @@ export function renderPdf(r) {
       if (y + 90 > bottom) { doc.addPage(); y = 50; }
       doc.fillColor(C.text).font('Helvetica-Bold').fontSize(13).text('Cumplimiento y política de copias', M, y);
       y += 18;
-      const pc = [{ l: 'Máquina', w: 170 }, { l: 'RPO (prog.)', w: 105 }, { l: 'Retención', w: 145 }, { l: 'Modo', w: CW - 170 - 105 - 145 }];
+      const pc = [{ l: 'Máquina', w: 150 }, { l: 'RPO (prog.)', w: 92 }, { l: 'Retención', w: 178 }, { l: 'Modo', w: CW - 150 - 92 - 178 }];
       doc.rect(M, y, CW, 18).fill(C.soft);
       let px = M; doc.fillColor(C.muted).font('Helvetica-Bold').fontSize(8);
       for (const c of pc) { doc.text(c.l.toUpperCase(), px + 6, y + 5, { width: c.w - 10 }); px += c.w; }
       y += 18;
       for (const s of (r.scope || [])) {
-        if (y + 17 > bottom) { doc.addPage(); y = 50; }
         const p = (r.policies && (r.policies[s.vmid] || r.policies['*'])) || null;
+        const cells = [
+          `${s.vmid}${s.name ? ` · ${s.name}` : ''}`,
+          p ? p.schedule : '—',
+          p ? p.retention : '—',
+          p ? p.mode : '—',
+        ];
+        // Altura de fila dinámica: la de la celda más alta (evita solapes al partir línea)
+        doc.font('Helvetica').fontSize(9);
+        const rowH = Math.max(14, ...cells.map((txt, i) => doc.heightOfString(String(txt), { width: pc[i].w - 10 }))) + 8;
+        if (y + rowH > bottom) { doc.addPage(); y = 50; }
         px = M;
-        doc.font('Helvetica').fontSize(9).fillColor(C.text).text(`${s.vmid}${s.name ? ` · ${s.name}` : ''}`, px + 6, y + 4, { width: pc[0].w - 10 }); px += pc[0].w;
+        doc.fillColor(C.text).text(cells[0], px + 6, y + 4, { width: pc[0].w - 10 }); px += pc[0].w;
         doc.fillColor(C.muted);
-        doc.text(p ? p.schedule : '—', px + 6, y + 4, { width: pc[1].w - 10 }); px += pc[1].w;
-        doc.text(p ? p.retention : '—', px + 6, y + 4, { width: pc[2].w - 10 }); px += pc[2].w;
-        doc.text(p ? p.mode : '—', px + 6, y + 4, { width: pc[3].w - 10 });
-        y += 17; doc.moveTo(M, y).lineTo(M + CW, y).strokeColor(C.line).lineWidth(0.5).stroke();
+        doc.text(cells[1], px + 6, y + 4, { width: pc[1].w - 10 }); px += pc[1].w;
+        doc.text(cells[2], px + 6, y + 4, { width: pc[2].w - 10 }); px += pc[2].w;
+        doc.text(cells[3], px + 6, y + 4, { width: pc[3].w - 10 });
+        y += rowH; doc.moveTo(M, y).lineTo(M + CW, y).strokeColor(C.line).lineWidth(0.5).stroke();
       }
       y += 10;
       const off = r.offsite;

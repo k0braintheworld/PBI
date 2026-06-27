@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useT } from '../i18n.jsx';
 
 /* ---- Diálogo de confirmación propio (sustituye a window.confirm, que algunos
    entornos bloquean silenciosamente) ---- */
@@ -15,6 +16,7 @@ export function confirmDialog(opts) {
 
 /** Montar una sola vez en la raíz de la app. */
 export function ConfirmHost() {
+  const t = useT();
   const [state, setState] = useState(null);
   useEffect(() => { _showConfirm = setState; return () => { _showConfirm = null; }; }, []);
   if (!state) return null;
@@ -22,15 +24,15 @@ export function ConfirmHost() {
   return (
     <div className="modal-overlay" onClick={() => close(false)}>
       <div className="modal" style={{ maxWidth: 420 }} onClick={(e) => e.stopPropagation()}>
-        <h3 style={{ marginTop: 0 }}>{state.title || 'Confirmar'}</h3>
+        <h3 style={{ marginTop: 0 }}>{state.title || t('Confirmar')}</h3>
         <p className="muted" style={{ marginTop: 0 }}>{state.message}</p>
         <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
-          <button className="btn" onClick={() => close(false)}>Cancelar</button>
+          <button className="btn" onClick={() => close(false)}>{t('Cancelar')}</button>
           <button
             className="btn"
             style={state.danger ? { background: 'var(--err)', borderColor: 'var(--err)', color: '#fff' } : { background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff' }}
             onClick={() => close(true)}
-          >{state.confirmLabel || 'Aceptar'}</button>
+          >{state.confirmLabel || t('Aceptar')}</button>
         </div>
       </div>
     </div>
@@ -77,8 +79,9 @@ export function useAsync(fn, deps = []) {
   return { ...state, reload: run };
 }
 
-export function Loading({ label = 'Cargando…' }) {
-  return <div className="spinner">{label}</div>;
+export function Loading({ label }) {
+  const t = useT();
+  return <div className="spinner">{label || t('Cargando…')}</div>;
 }
 
 export function ErrorBox({ error }) {
@@ -88,9 +91,10 @@ export function ErrorBox({ error }) {
 
 /** Badge de estado de verificación de un snapshot. */
 export function VerifyBadge({ state }) {
-  if (state === 'ok') return <span className="badge ok">verificado</span>;
-  if (state === 'failed') return <span className="badge err">fallido</span>;
-  return <span className="badge muted">sin verificar</span>;
+  const t = useT();
+  if (state === 'ok') return <span className="badge ok">{t('verificado')}</span>;
+  if (state === 'failed') return <span className="badge err">{t('fallido')}</span>;
+  return <span className="badge muted">{t('sin verificar')}</span>;
 }
 
 const TASK_LABELS = {
@@ -103,8 +107,9 @@ export const taskTypeLabel = (type) => TASK_LABELS[type] || type;
 
 /** Badge de estado de una tarea. */
 export function TaskBadge({ task }) {
-  if (task.endtime == null) return <span className="badge run">en ejecución</span>;
+  const t = useT();
+  if (task.endtime == null) return <span className="badge run">{t('en ejecución')}</span>;
   if (task.status === 'OK') return <span className="badge ok">OK</span>;
-  if (/^WARNINGS/i.test(task.status || '')) return <span className="badge warn" title={task.status}>avisos</span>;
-  return <span className="badge err" title={task.status}>error</span>;
+  if (/^WARNINGS/i.test(task.status || '')) return <span className="badge warn" title={task.status}>{t('avisos')}</span>;
+  return <span className="badge err" title={task.status}>{t('error')}</span>;
 }

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { useAsync, Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
+import { useT } from '../i18n.jsx';
 import BackupJobs from './BackupJobs.jsx';
 
 const TABS = [
@@ -78,12 +79,13 @@ const TEMPLATES = {
 };
 
 export default function Jobs() {
+  const tr = useT();
   const [tab, setTab] = useState('backups');
   return (
     <div className="rise">
       <div className="seg pagehead" style={{ flexWrap: 'wrap' }}>
         {TABS.map((t) => (
-          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{t.label}</button>
+          <button key={t.key} className={tab === t.key ? 'active' : ''} onClick={() => setTab(t.key)}>{tr(t.label)}</button>
         ))}
       </div>
       {tab === 'backups' ? <BackupJobs /> : <PbsJobs kind={tab} />}
@@ -92,6 +94,7 @@ export default function Jobs() {
 }
 
 function PbsJobs({ kind }) {
+  const tr = useT();
   const jobs = useAsync(() => api.jobs(kind), [kind]);
   const [editing, setEditing] = useState(null); // null | {} (nuevo) | job (editar)
   const [msg, setMsg] = useState(null);
@@ -100,14 +103,14 @@ function PbsJobs({ kind }) {
     setMsg(null);
     try {
       const { upid } = await api.runJob(kind, id);
-      setMsg(`Job "${id}" lanzado. Tarea: ${upid}`);
+      setMsg(`${tr('Job')} "${id}" ${tr('lanzado. Tarea:')} ${upid}`);
     } catch (err) {
       setMsg(`Error: ${err.message}`);
     }
   }
 
   async function remove(id) {
-    if (!(await confirmDialog({ message: `¿Eliminar el job "${id}"?`, danger: true, confirmLabel: 'Eliminar' }))) return;
+    if (!(await confirmDialog({ message: `${tr('¿Eliminar el job')} "${id}"?`, danger: true, confirmLabel: tr('Eliminar') }))) return;
     try {
       await api.deleteJob(kind, id);
       jobs.reload();
@@ -123,12 +126,12 @@ function PbsJobs({ kind }) {
       {info && (
         <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', background: 'var(--info-soft)', border: '1px solid #cfe0fb', color: '#2257c4', padding: '10px 13px', borderRadius: 8, fontSize: 12.5, marginBottom: 14 }}>
           <span style={{ flexShrink: 0, marginTop: 1 }}><Icon.report width={16} height={16} /></span>
-          <span><b>{info.title}.</b> {info.desc}</span>
+          <span><b>{tr(info.title)}.</b> {tr(info.desc)}</span>
         </div>
       )}
       <div className="flex-between" style={{ marginBottom: 14 }}>
-        <span className="muted" style={{ fontSize: 13 }}>Trabajos de mantenimiento de PBS</span>
-        <button className="btn primary sm" onClick={() => setEditing({})}><Icon.bolt width={14} height={14} /> Nuevo job</button>
+        <span className="muted" style={{ fontSize: 13 }}>{tr('Trabajos de mantenimiento de PBS')}</span>
+        <button className="btn primary sm" onClick={() => setEditing({})}><Icon.bolt width={14} height={14} /> {tr('Nuevo job')}</button>
       </div>
 
       {msg && <div className="banner">{msg}</div>}
@@ -142,8 +145,8 @@ function PbsJobs({ kind }) {
           <table>
             <thead>
               <tr>
-                <th>ID</th><th>Datastore</th><th>Programación</th><th>Estado</th>
-                <th>Comentario</th><th style={{ width: 1 }}>Acciones</th>
+                <th>ID</th><th>Datastore</th><th>{tr('Programación')}</th><th>{tr('Estado')}</th>
+                <th>{tr('Comentario')}</th><th style={{ width: 1 }}>{tr('Acciones')}</th>
               </tr>
             </thead>
             <tbody>
@@ -154,21 +157,21 @@ function PbsJobs({ kind }) {
                   <td><span className="badge info plain">{j.schedule || 'manual'}</span></td>
                   <td>
                     {j.disable
-                      ? <span className="badge muted">deshabilitado</span>
-                      : <span className="badge ok">activo</span>}
+                      ? <span className="badge muted">{tr('deshabilitado')}</span>
+                      : <span className="badge ok">{tr('activo')}</span>}
                   </td>
                   <td className="muted">{j.comment || '—'}</td>
                   <td>
                     <div className="btn-row" style={{ flexWrap: 'nowrap' }}>
-                      <button className="btn sm" onClick={() => run(j.id)} title="Ejecutar ahora"><Icon.play width={13} height={13} /></button>
-                      <button className="btn sm ghost" onClick={() => setEditing(j)}>Editar</button>
-                      <button className="btn sm ghost danger" onClick={() => remove(j.id)}>Eliminar</button>
+                      <button className="btn sm" onClick={() => run(j.id)} title={tr('Ejecutar ahora')}><Icon.play width={13} height={13} /></button>
+                      <button className="btn sm ghost" onClick={() => setEditing(j)}>{tr('Editar')}</button>
+                      <button className="btn sm ghost danger" onClick={() => remove(j.id)}>{tr('Eliminar')}</button>
                     </div>
                   </td>
                 </tr>
               ))}
               {!jobs.data.length && (
-                <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 28 }}>No hay jobs de este tipo. Crea uno con «Nuevo job».</td></tr>
+                <tr><td colSpan={6} className="muted" style={{ textAlign: 'center', padding: 28 }}>{tr('No hay jobs de este tipo. Crea uno con «Nuevo job».')}</td></tr>
               )}
             </tbody>
           </table>
@@ -189,6 +192,7 @@ function PbsJobs({ kind }) {
 }
 
 function JobModal({ kind, job, onClose, onSaved, onError }) {
+  const tr = useT();
   const isNew = !job.id;
   const [form, setForm] = useState(() => ({ ...job }));
   const [busy, setBusy] = useState(false);
@@ -224,13 +228,13 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
-        <h3>{isNew ? 'Nuevo' : 'Editar'} job de {kind}</h3>
+        <h3>{isNew ? tr('Nuevo') : tr('Editar')} {tr('job de')} {kind}</h3>
         {TEMPLATES[kind] && (
           <>
-            <label style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 500 }}>Plantillas</label>
+            <label style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 500 }}>{tr('Plantillas')}</label>
             <div className="btn-row" style={{ margin: '6px 0 14px' }}>
               {TEMPLATES[kind].map((t) => (
-                <button key={t.label} type="button" className="btn sm" onClick={() => applyTemplate(t)}>{t.label}</button>
+                <button key={t.label} type="button" className="btn sm" onClick={() => applyTemplate(t)}>{tr(t.label)}</button>
               ))}
             </div>
           </>
@@ -241,11 +245,11 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
               {f.type === 'checkbox' ? (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--text)' }}>
                   <input type="checkbox" checked={!!form[f.name]} onChange={set(f.name, 'checkbox')} />
-                  {f.label}
+                  {tr(f.label)}
                 </label>
               ) : (
                 <>
-                  <label>{f.label}{f.required && ' *'}</label>
+                  <label>{tr(f.label)}{f.required && ' *'}</label>
                   <input
                     className="input"
                     type={f.type === 'number' ? 'number' : 'text'}
@@ -261,11 +265,11 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
           ))}
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
             <input type="checkbox" checked={!!form.disable} onChange={set('disable', 'checkbox')} />
-            <span className="muted">Deshabilitado</span>
+            <span className="muted">{tr('Deshabilitado')}</span>
           </label>
           <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
-            <button type="button" className="btn" onClick={onClose}>Cancelar</button>
-            <button className="btn primary" disabled={busy}>{busy ? 'Guardando…' : 'Guardar'}</button>
+            <button type="button" className="btn" onClick={onClose}>{tr('Cancelar')}</button>
+            <button className="btn primary" disabled={busy}>{busy ? tr('Guardando…') : tr('Guardar')}</button>
           </div>
         </form>
       </div>
