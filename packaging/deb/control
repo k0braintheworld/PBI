@@ -1,0 +1,13 @@
+Package: pbi
+Version: __VERSION__
+Section: admin
+Priority: optional
+Architecture: __ARCH__
+Maintainer: k0bra <k0bra@k0braintheworld.com>
+Depends: adduser
+Description: PBI - Proxmox Backup Interface
+ Interfaz web para gestionar Proxmox Backup Server: copias de seguridad,
+ recuperacion (via Proxmox VE), trabajos programados, informes (PDF),
+ limpieza, notificaciones por email y gestion de usuarios.
+ Incluye su propio runtime de Node.js y se ejecuta como servicio systemd
+ en el puerto 8800.

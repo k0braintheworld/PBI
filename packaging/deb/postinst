@@ -1,0 +1,65 @@
+#!/bin/sh
+set -e
+
+# Usuario de sistema dedicado
+if ! getent passwd pbi >/dev/null 2>&1; then
+  adduser --system --group --home /var/lib/pbi --no-create-home --quiet pbi || true
+fi
+
+# Carpeta de datos persistente
+mkdir -p /var/lib/pbi
+chown -R pbi:pbi /var/lib/pbi
+chmod 750 /var/lib/pbi
+
+# Certificado HTTPS autofirmado (si no existe ya y hay openssl)
+mkdir -p /var/lib/pbi/tls
+if [ ! -s /var/lib/pbi/tls/pbi.crt ] || [ ! -s /var/lib/pbi/tls/pbi.key ]; then
+  if command -v openssl >/dev/null 2>&1; then
+    CN=$(hostname -f 2>/dev/null || hostname 2>/dev/null || echo pbi)
+    openssl req -x509 -newkey rsa:2048 -nodes -days 3650 \
+      -keyout /var/lib/pbi/tls/pbi.key -out /var/lib/pbi/tls/pbi.crt \
+      -subj "/CN=${CN}" >/dev/null 2>&1 || true
+  else
+    echo "  AVISO: openssl no disponible; PBI arrancara en HTTP. Genera un certificado en /var/lib/pbi/tls/."
+  fi
+fi
+chown -R pbi:pbi /var/lib/pbi/tls
+chmod 700 /var/lib/pbi/tls
+[ -f /var/lib/pbi/tls/pbi.key ] && chmod 600 /var/lib/pbi/tls/pbi.key || true
+
+# Generar un SESSION_SECRET aleatorio la primera vez
+if grep -q '^SESSION_SECRET=CHANGE_ME' /etc/pbi/pbi.env 2>/dev/null; then
+  SECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  sed -i "s/^SESSION_SECRET=CHANGE_ME/SESSION_SECRET=$SECRET/" /etc/pbi/pbi.env
+fi
+chown root:pbi /etc/pbi/pbi.env || true
+chmod 640 /etc/pbi/pbi.env || true
+
+# Servicio
+systemctl daemon-reload >/dev/null 2>&1 || true
+systemctl enable pbi.service >/dev/null 2>&1 || true
+systemctl restart pbi.service >/dev/null 2>&1 || true
+
+PORT=$(grep -E '^PORT=' /etc/pbi/pbi.env 2>/dev/null | cut -d= -f2)
+PORT=${PORT:-8800}
+PROTO=http
+[ -s /var/lib/pbi/tls/pbi.crt ] && PROTO=https
+
+# IP principal de esta maquina (PBS u otra Linux)
+IP=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i=="src"){print $(i+1); exit}}')
+[ -z "$IP" ] && IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+[ -z "$IP" ] && IP=localhost
+
+echo ""
+echo "  ============================================================"
+echo "    PBI - Proxmox Backup Interface  ya esta instalado y activo"
+echo ""
+echo "    Accede desde tu navegador:"
+echo "      ${PROTO}://${IP}:${PORT}"
+[ "$PROTO" = "https" ] && echo "      (certificado autofirmado: el navegador avisara la 1a vez)"
+echo ""
+echo "    La primera vez te pedira crear el usuario administrador."
+echo "  ============================================================"
+echo ""
+
+exit 0
