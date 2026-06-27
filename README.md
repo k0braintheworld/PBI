@@ -27,8 +27,8 @@ contraseña y 2FA opcional**, y la interfaz está disponible en **español e ing
 ## ✨ Características
 
 ### Visión general (Dashboard)
-Panel denso estilo Veeam / Active Backup: almacenamiento por datastore, nº de
-snapshots, grupos protegidos y verificaciones fallidas; **dispositivos protegidos**
+Panel: almacenamiento por datastore, nº de snapshots, grupos protegidos y verificaciones fallidas; 
+**dispositivos protegidos**
 por tipo (VM / CT / Host); **calendario de copias** de las últimas 5 semanas con
 código de color (correcta / parcial / con fallo / sin copia); donut de uso de
 almacenamiento; últimas copias; actividad reciente; y tendencia de transferencia diaria.
