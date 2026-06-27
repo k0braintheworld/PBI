@@ -96,6 +96,11 @@ pveRouter.post('/:id/backup-jobs', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
   res.json(await pve.pveCreateBackupJob(h, req.body));
 }));
+// Lanzar ahora un trabajo de copia ya configurado (vzdump)
+pveRouter.post('/:id/backup-jobs/:jobid/run', wrap(async (req, res) => {
+  const h = raw(req, res); if (!h) return;
+  res.json({ results: await pve.pveRunBackupJob(h, req.params.jobid) });
+}));
 pveRouter.put('/:id/backup-jobs/:jobid', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
   res.json(await pve.pveUpdateBackupJob(h, req.params.jobid, req.body));

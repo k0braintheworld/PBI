@@ -51,6 +51,57 @@ export const pveDeleteBackupJob = (pve, id) =>
   pveCall(pve, { method: 'DELETE', path: `/cluster/backup/${encodeURIComponent(id)}` });
 
 /**
+ * Lanza AHORA un trabajo de copia ya configurado. Proxmox no tiene un "ejecutar
+ * job por id" universal, así que tomamos los parámetros del job y arrancamos un
+ * `vzdump` en el/los nodo(s) correspondiente(s). Devuelve [{ node, upid|error }].
+ */
+export async function pveRunBackupJob(pve, jobId) {
+  const jobs = await pveBackupJobs(pve);
+  const job = (jobs || []).find((j) => j.id === jobId);
+  if (!job) throw new Error(`Trabajo de copia no encontrado: ${jobId}`);
+
+  // Solo parámetros válidos de vzdump (no los campos propios del job: id, schedule…)
+  const VZ = ['storage', 'mode', 'compress', 'prune-backups', 'notes-template', 'mailto',
+    'notification-mode', 'bwlimit', 'pigz', 'zstd', 'performance', 'fleecing', 'protected', 'ionice'];
+  const base = {};
+  for (const k of VZ) if (job[k] != null && job[k] !== '') base[k] = job[k];
+
+  // Resolver a qué nodo(s) y con qué cuerpo se lanza el vzdump
+  const targets = [];
+  if (job.all || job.pool) {
+    const nodes = await pveNodes(pve);
+    for (const n of nodes || []) {
+      const body = { ...base };
+      if (job.all) body.all = 1; // si es por pool, ya va en `base`
+      targets.push({ node: n.node, body });
+    }
+  } else if (job.vmid) {
+    const wanted = new Set(String(job.vmid).split(',').map((s) => s.trim()).filter(Boolean));
+    const guests = await pveGuests(pve);
+    const byNode = {};
+    for (const g of guests || []) if (wanted.has(String(g.vmid))) (byNode[g.node] = byNode[g.node] || []).push(String(g.vmid));
+    if (!Object.keys(byNode).length) throw new Error('No se encontraron las máquinas del trabajo en el clúster');
+    for (const [node, vmids] of Object.entries(byNode)) targets.push({ node, body: { ...base, vmid: vmids.join(',') } });
+  } else {
+    throw new Error('El trabajo no define máquinas (vmid/all/pool)');
+  }
+
+  const results = [];
+  for (const t of targets) {
+    try {
+      const upid = await pveCall(pve, { method: 'POST', path: `/nodes/${encodeURIComponent(t.node)}/vzdump`, body: t.body });
+      results.push({ node: t.node, upid });
+    } catch (e) {
+      results.push({ node: t.node, error: e.message });
+    }
+  }
+  if (results.length && results.every((r) => r.error)) {
+    throw new Error(results.map((r) => `${r.node}: ${r.error}`).join('; '));
+  }
+  return results;
+}
+
+/**
  * Silencia (o restaura) las notificaciones de email de los trabajos de copia.
  * silence=true -> notification-mode 'legacy-sendmail' sin destinatario (no envía).
  * silence=false -> notification-mode 'auto' (comportamiento por defecto).
