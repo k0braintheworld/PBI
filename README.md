@@ -155,10 +155,13 @@ pbmdev/
 
 ## Notas y siguientes pasos
 
-- Los hosts se guardan en `server/data/hosts.json` con los **secretos en texto plano**
-  (el fichero se crea con permisos `600`). Es aceptable en una máquina de confianza;
-  para mayor seguridad convendría cifrarlos en reposo. La API nunca devuelve los
-  secretos (se enmascaran).
+- Los secretos (token secrets de PBS/PVE y contraseña SMTP) se guardan **cifrados en
+  reposo** (AES-256-GCM) en los ficheros de datos (`600`). La clave se deriva del
+  `SESSION_SECRET` del servidor —que en la instalación `.deb` vive en `/etc/pbi/pbi.env`,
+  **separado** del directorio de datos `/var/lib/pbi`—, de modo que una copia del
+  directorio de datos no basta para descifrarlos. La API nunca devuelve los secretos
+  (se enmascaran). Si cambias `SESSION_SECRET`, los secretos ya guardados habrá que
+  reintroducirlos.
 - Los tickets del modo usuario/contraseña se cachean **en memoria** y se renuevan
   automáticamente; las peticiones a PBS tienen un timeout de 15 s.
 - Los endpoints de **ejecución manual** de jobs usan `/admin/{kind}/{id}` (best-effort

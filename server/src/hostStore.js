@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
+import { encryptSecret, decryptSecret } from './secretCrypto.js';
 
 /**
  * Almacén PERSISTENTE de hosts PBS.
@@ -11,14 +12,17 @@ import { config } from './config.js';
  * server/data/hosts.json. Es la "agenda" de servidores PBS que el usuario
  * gestiona desde la sección Configuración de la interfaz.
  *
- * Nota de seguridad: los secretos (token secret / contraseña) se guardan en
- * texto plano en el fichero. Es aceptable para una herramienta self-hosted en
- * una máquina de confianza, pero el fichero debe tener permisos restringidos.
- * Las respuestas de la API nunca devuelven los secretos (se enmascaran).
+ * Seguridad: los secretos (token secret / contraseña) se guardan CIFRADOS en
+ * reposo (AES-256-GCM, ver secretCrypto.js) y el fichero tiene permisos 0600.
+ * En memoria se manejan en claro; las respuestas de la API nunca los devuelven.
  */
 
 const DATA_DIR = config.dataDir;
 const FILE = path.join(DATA_DIR, 'hosts.json');
+const SECRET_FIELDS = ['secret', 'password'];
+
+const decHost = (h) => { const o = { ...h }; for (const f of SECRET_FIELDS) if (o[f]) o[f] = decryptSecret(o[f]); return o; };
+const encHost = (h) => { const o = { ...h }; for (const f of SECRET_FIELDS) if (o[f]) o[f] = encryptSecret(o[f]); return o; };
 
 function ensureFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -28,7 +32,7 @@ function ensureFile() {
 function readAll() {
   ensureFile();
   try {
-    return JSON.parse(fs.readFileSync(FILE, 'utf8')).hosts || [];
+    return (JSON.parse(fs.readFileSync(FILE, 'utf8')).hosts || []).map(decHost);
   } catch {
     return [];
   }
@@ -36,8 +40,14 @@ function readAll() {
 
 function writeAll(hosts) {
   ensureFile();
-  fs.writeFileSync(FILE, JSON.stringify({ hosts }, null, 2), { mode: 0o600 });
+  fs.writeFileSync(FILE, JSON.stringify({ hosts: hosts.map(encHost) }, null, 2), { mode: 0o600 });
   try { fs.chmodSync(FILE, 0o600); } catch { /* ignore */ }
+}
+
+/** Re-guarda cifrando cualquier secreto que aún esté en texto plano (migración). */
+export function migrateSecrets() {
+  const all = readAll();
+  if (all.length) writeAll(all);
 }
 
 /** Versión segura para enviar al cliente: sin secretos. */
