@@ -64,7 +64,14 @@ export async function pveRunBackupJob(pve, jobId) {
   const VZ = ['storage', 'mode', 'compress', 'prune-backups', 'notes-template', 'mailto',
     'notification-mode', 'bwlimit', 'pigz', 'zstd', 'performance', 'fleecing', 'protected', 'ionice'];
   const base = {};
-  for (const k of VZ) if (job[k] != null && job[k] !== '') base[k] = job[k];
+  for (const k of VZ) {
+    let v = job[k];
+    if (v == null || v === '') continue;
+    // PVE devuelve algunos parámetros como objeto (p. ej. prune-backups: {keep-last:5});
+    // vzdump los espera como property-string "clave=valor,clave=valor".
+    if (typeof v === 'object') v = Object.entries(v).map(([kk, vv]) => `${kk}=${vv}`).join(',');
+    base[k] = v;
+  }
 
   // Resolver a qué nodo(s) y con qué cuerpo se lanza el vzdump
   const targets = [];
