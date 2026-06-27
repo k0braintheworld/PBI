@@ -26,7 +26,7 @@ optional 2FA**, and the interface is available in **Spanish and English**.
 ## ✨ Features
 
 ### Overview (Dashboard)
-A dense, Veeam / Active Backup-style panel: storage per datastore, snapshot count,
+Panel: storage per datastore, snapshot count,
 protected groups and failed verifications; **protected devices** by type (VM / CT /
 Host); a **backup calendar** for the last 5 weeks, colour-coded (successful / partial /
 failed / no backup); a storage-usage donut; latest backups; recent activity; and a daily
