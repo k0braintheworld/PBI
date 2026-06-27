@@ -1,4 +1,5 @@
 // Gráficas SVG ligeras (sin librerías externas).
+import { tg } from '../i18n.jsx';
 
 /** Gráfica de área para la tendencia de transferencia diaria. */
 export function AreaChart({ data, color = 'var(--brand)', format = (v) => v, height = 220 }) {
@@ -78,7 +79,7 @@ export function Donut({ percent, size = 132, color }) {
       <text x="50%" y="48%" textAnchor="middle" fontSize="26" fontWeight="600" fill="var(--text)" fontFamily="var(--mono)">
         {Math.round(pct)}%
       </text>
-      <text x="50%" y="63%" textAnchor="middle" fontSize="11" fill="var(--text-3)">usado</text>
+      <text x="50%" y="63%" textAnchor="middle" fontSize="11" fill="var(--text-3)">{tg('usado')}</text>
     </svg>
   );
 }

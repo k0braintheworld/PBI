@@ -23,10 +23,18 @@ function detectInitial() {
 
 const LangCtx = createContext(null);
 
+// Idioma a nivel de módulo, para traducir desde funciones que no son componentes
+// React (formateadores de fecha/tamaño, etc.). Lo mantiene actualizado el provider.
+let _moduleLang = detectInitial();
+export const moduleLang = () => _moduleLang;
+/** Traductor global (no reactivo): úsalo en helpers fuera de componentes. */
+export const tg = (s) => (_moduleLang === 'en' ? (EN[s] ?? s) : s);
+
 export function LanguageProvider({ children }) {
   const [lang, setLangState] = useState(detectInitial);
   const setLang = useCallback((l) => {
     const v = l === 'en' ? 'en' : 'es';
+    _moduleLang = v;
     try { localStorage.setItem('pbi_lang', v); } catch { /* ignore */ }
     setLangState(v);
   }, []);

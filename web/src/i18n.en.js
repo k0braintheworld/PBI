@@ -115,6 +115,7 @@ export const EN = {
   'Rotación de logs': 'Log rotation',
 
   // --- Dashboard ---
+  'usado': 'used',
   'Grupos protegidos': 'Protected groups',
   'Snapshots totales': 'Total snapshots',
   'Verificaciones con fallo': 'Failed verifications',
