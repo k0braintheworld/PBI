@@ -110,16 +110,11 @@ Ejemplos generados con datos ficticios por el propio motor de PBI. GitHub muestr
 > puedes activar **GitHub Pages** en el repositorio. También puedes descargar los HTML y
 > abrirlos en tu navegador.
 
-Las capturas de pantalla se colocan en `docs/screenshots/` (ver la
-[guía](docs/screenshots/README.md)). Una vez añadidas, descomenta este bloque:
-
-<!--
-| Panel principal | Copias de seguridad | Recuperación |
-|:---:|:---:|:---:|
-| ![Panel](docs/screenshots/dashboard.png) | ![Backups](docs/screenshots/backups.png) | ![Recuperación](docs/screenshots/recovery.png) |
-| **Tareas programadas** | **Informes** | **Configuración · 2FA** |
-| ![Tareas](docs/screenshots/jobs.png) | ![Informes](docs/screenshots/reports.png) | ![2FA](docs/screenshots/settings-2fa.png) |
--->
+| Panel principal (Dashboard) | Recuperación |
+|:---:|:---:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Recuperación](docs/screenshots/recovery.png) |
+| **Tareas programadas (copia)** | **Restauración programada** |
+| ![Tareas programadas](docs/screenshots/jobs.png) | ![Restauración programada](docs/screenshots/restore-jobs.png) |
 
 ## 🚀 Instalación
 

@@ -107,16 +107,13 @@ as source code; to see them **rendered**, use the "view" links:
 > can enable **GitHub Pages** on the repository. You can also download the HTML files and
 > open them in your browser.
 
-Screenshots go in `docs/screenshots/` (see the [guide](docs/screenshots/README.md)). Once
-added, uncomment this block:
+| Dashboard | Recovery |
+|:---:|:---:|
+| ![Dashboard](docs/screenshots/dashboard.png) | ![Recovery](docs/screenshots/recovery.png) |
+| **Scheduled tasks (backup)** | **Scheduled restore** |
+| ![Scheduled tasks](docs/screenshots/jobs.png) | ![Scheduled restore](docs/screenshots/restore-jobs.png) |
 
-<!--
-| Dashboard | Backups | Recovery |
-|:---:|:---:|:---:|
-| ![Dashboard](docs/screenshots/dashboard.png) | ![Backups](docs/screenshots/backups.png) | ![Recovery](docs/screenshots/recovery.png) |
-| **Scheduled tasks** | **Reports** | **Settings · 2FA** |
-| ![Jobs](docs/screenshots/jobs.png) | ![Reports](docs/screenshots/reports.png) | ![2FA](docs/screenshots/settings-2fa.png) |
--->
+> The screenshots show the interface in Spanish; switch the language with the ES/EN toggle.
 
 ## 🚀 Installation
 
