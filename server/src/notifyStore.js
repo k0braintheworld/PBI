@@ -2,11 +2,13 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
+import { encryptSecret, decryptSecret } from './secretCrypto.js';
 
 /**
  * Configuración persistente de notificaciones por email (SMTP) + estado del
  * vigilante (marca de tiempo de la última tarea notificada). El fichero se
- * guarda con permisos 0600 y la contraseña SMTP nunca se devuelve por la API.
+ * guarda con permisos 0600; la contraseña SMTP se cifra en reposo
+ * (secretCrypto.js) y nunca se devuelve por la API.
  */
 
 const DATA_DIR = config.dataDir;
@@ -31,7 +33,9 @@ export function getRaw() {
   ensure();
   try {
     const c = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    return { ...DEFAULTS, ...c, smtp: { ...DEFAULTS.smtp, ...(c.smtp || {}) }, state: { ...DEFAULTS.state, ...(c.state || {}) } };
+    const cfg = { ...DEFAULTS, ...c, smtp: { ...DEFAULTS.smtp, ...(c.smtp || {}) }, state: { ...DEFAULTS.state, ...(c.state || {}) } };
+    if (cfg.smtp.pass) cfg.smtp.pass = decryptSecret(cfg.smtp.pass);
+    return cfg;
   } catch {
     return { ...DEFAULTS };
   }
@@ -39,8 +43,15 @@ export function getRaw() {
 
 function write(cfg) {
   ensure();
-  fs.writeFileSync(FILE, JSON.stringify(cfg, null, 2), { mode: 0o600 });
+  const out = { ...cfg, smtp: { ...cfg.smtp } };
+  if (out.smtp.pass) out.smtp.pass = encryptSecret(out.smtp.pass);
+  fs.writeFileSync(FILE, JSON.stringify(out, null, 2), { mode: 0o600 });
   try { fs.chmodSync(FILE, 0o600); } catch { /* ignore */ }
+}
+
+/** Re-guarda cifrando la contraseña SMTP si aún está en texto plano (migración). */
+export function migrateSecrets() {
+  if (getRaw().smtp.pass) write(getRaw());
 }
 
 /** Versión segura para el cliente: sin la contraseña SMTP. */

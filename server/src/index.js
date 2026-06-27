@@ -16,6 +16,9 @@ import { notifyRouter } from './routes/notify.js';
 import { reportRouter } from './routes/report.js';
 import { apiRouter } from './routes/api.js';
 import { startNotifier } from './notifier.js';
+import { migrateSecrets as migrateHostSecrets } from './hostStore.js';
+import { migrateSecrets as migratePveSecrets } from './pveStore.js';
+import { migrateSecrets as migrateNotifySecrets } from './notifyStore.js';
 import { startReportScheduler } from './reportScheduler.js';
 
 const app = express();
@@ -78,6 +81,8 @@ server.listen(config.port, () => {
   console.log(`PBI backend escuchando en ${proto}://localhost:${config.port}`);
   console.log(`  TLS:       ${config.tls.enabled ? 'ACTIVADO (HTTPS)' : 'desactivado (HTTP)'}`);
   console.log(`  PBS host:  ${config.pbs.host}`);
+  // Cifra en reposo cualquier secreto que viniera en texto plano (instalaciones previas)
+  try { migrateHostSecrets(); migratePveSecrets(); migrateNotifySecrets(); } catch (e) { console.warn('Aviso: migración de secretos:', e.message); }
   startNotifier();
   startReportScheduler();
 });

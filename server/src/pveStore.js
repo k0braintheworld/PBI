@@ -3,6 +3,7 @@ import path from 'node:path';
 import crypto from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
+import { encryptSecret, decryptSecret } from './secretCrypto.js';
 
 /**
  * Almacén persistente de conexiones a Proxmox VE (hipervisor).
@@ -14,12 +15,15 @@ import { config } from './config.js';
  * Autenticación: API token de PVE (recomendado). Formato del token:
  *   tokenId = usuario@realm!nombre   +   secret = UUID
  *
- * Igual que con PBS: secretos en texto plano (fichero 0600), nunca devueltos
- * por la API (se enmascaran).
+ * Igual que con PBS: el secreto se guarda CIFRADO en reposo (secretCrypto.js),
+ * fichero 0600, y nunca se devuelve por la API (se enmascara).
  */
 
 const DATA_DIR = config.dataDir;
 const FILE = path.join(DATA_DIR, 'pve.json');
+
+const decPve = (h) => (h.secret ? { ...h, secret: decryptSecret(h.secret) } : h);
+const encPve = (h) => (h.secret ? { ...h, secret: encryptSecret(h.secret) } : h);
 
 function ensureFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -27,12 +31,18 @@ function ensureFile() {
 }
 function readAll() {
   ensureFile();
-  try { return JSON.parse(fs.readFileSync(FILE, 'utf8')).pve || []; } catch { return []; }
+  try { return (JSON.parse(fs.readFileSync(FILE, 'utf8')).pve || []).map(decPve); } catch { return []; }
 }
 function writeAll(list) {
   ensureFile();
-  fs.writeFileSync(FILE, JSON.stringify({ pve: list }, null, 2), { mode: 0o600 });
+  fs.writeFileSync(FILE, JSON.stringify({ pve: list.map(encPve) }, null, 2), { mode: 0o600 });
   try { fs.chmodSync(FILE, 0o600); } catch { /* ignore */ }
+}
+
+/** Re-guarda cifrando cualquier secreto aún en texto plano (migración). */
+export function migrateSecrets() {
+  const all = readAll();
+  if (all.length) writeAll(all);
 }
 
 function mask(h) {
