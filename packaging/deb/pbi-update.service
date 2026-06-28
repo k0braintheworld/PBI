@@ -1,0 +1,7 @@
+[Unit]
+Description=PBI self-update installer (root, triggered by pbi-update.path)
+
+[Service]
+Type=oneshot
+# Se ejecuta como root (sin sandbox) para poder instalar el paquete.
+ExecStart=/opt/pbi/pbi-update

@@ -1,39 +1,45 @@
 #!/bin/sh
-# Actualizador de PBI (se ejecuta como root vía una regla sudoers acotada).
-# Descarga el .deb de una release OFICIAL, verifica su SHA-256 y lo instala en
-# una unidad systemd transitoria, desacoplada de pbi.service (que se reiniciará).
-#
-# Uso:  pbi-update <url-del-.deb> <sha256>
+# Actualizador de PBI. Lo dispara (como ROOT) la unidad pbi-update.path cuando el
+# servicio web deja una solicitud en /var/lib/pbi/.update-request:
+#   linea 1 = URL del .deb (release oficial)   linea 2 = SHA-256 esperado
+# Descarga, verifica el checksum e instala. El servicio web NUNCA escala
+# privilegios: solo escribe la solicitud.
 set -eu
 
-URL="${1:-}"
-SHA="${2:-}"
-
-# Solo releases oficiales de PBI
-case "$URL" in
-  https://github.com/k0braintheworld/PBI/releases/download/*.deb) : ;;
-  *) echo "URL no permitida" >&2; exit 2 ;;
-esac
-# SHA-256 con formato válido
-echo "$SHA" | grep -Eq '^[a-fA-F0-9]{64}$' || { echo "Checksum no valido" >&2; exit 2; }
-
+REQ=/var/lib/pbi/.update-request
+LOG=/var/lib/pbi/.update.log
 DEB=/var/lib/pbi/.pending-update.deb
-rm -f "$DEB"
 
-command -v curl >/dev/null 2>&1 || { echo "curl no esta instalado" >&2; exit 5; }
-curl -fsSL --max-time 180 "$URL" -o "$DEB" || { echo "Descarga fallida" >&2; exit 3; }
+[ -f "$REQ" ] || exit 0
+URL=$(sed -n '1p' "$REQ" 2>/dev/null || true)
+SHA=$(sed -n '2p' "$REQ" 2>/dev/null || true)
+rm -f "$REQ"   # consumir la solicitud (evita reprocesos)
 
-if ! echo "${SHA}  ${DEB}" | sha256sum -c - >/dev/null 2>&1; then
+{
+  echo "== $(date) =="
+
+  # Solo releases oficiales de PBI
+  case "$URL" in
+    https://github.com/k0braintheworld/PBI/releases/download/*.deb) : ;;
+    *) echo "URL no permitida: $URL"; exit 2 ;;
+  esac
+  echo "$SHA" | grep -Eq '^[a-fA-F0-9]{64}$' || { echo "Checksum con formato no valido"; exit 2; }
+
   rm -f "$DEB"
-  echo "El checksum no coincide: descarga descartada" >&2
-  exit 4
-fi
+  if command -v curl >/dev/null 2>&1; then
+    curl -fsSL --max-time 300 "$URL" -o "$DEB" || { echo "Descarga fallida (curl)"; exit 3; }
+  elif command -v wget >/dev/null 2>&1; then
+    wget -q -T 300 -O "$DEB" "$URL" || { echo "Descarga fallida (wget)"; exit 3; }
+  else
+    echo "Ni curl ni wget estan disponibles"; exit 5
+  fi
 
-command -v systemd-run >/dev/null 2>&1 || { echo "systemd-run no disponible" >&2; exit 6; }
-# Instala en segundo plano, fuera del cgroup de pbi.service (que el propio dpkg reiniciará)
-systemd-run --collect --unit=pbi-self-update --description="PBI self-update" \
-  /bin/sh -c 'sleep 1; dpkg -i /var/lib/pbi/.pending-update.deb >/var/lib/pbi/.update.log 2>&1; rm -f /var/lib/pbi/.pending-update.deb' \
-  >/dev/null 2>&1
+  if ! echo "${SHA}  ${DEB}" | sha256sum -c - >/dev/null 2>&1; then
+    rm -f "$DEB"; echo "El checksum NO coincide: descarga descartada"; exit 4
+  fi
 
-echo "OK"
-exit 0
+  echo "Checksum OK. Instalando..."
+  dpkg -i "$DEB"          # su postinst reiniciara pbi.service (unidad distinta a esta)
+  rm -f "$DEB"
+  echo "Instalacion completada."
+} >>"$LOG" 2>&1

@@ -1,0 +1,10 @@
+[Unit]
+Description=PBI self-update trigger (watches for an update request)
+
+[Path]
+# Cuando el servicio web deja una solicitud, dispara la instalación.
+PathExists=/var/lib/pbi/.update-request
+Unit=pbi-update.service
+
+[Install]
+WantedBy=multi-user.target
