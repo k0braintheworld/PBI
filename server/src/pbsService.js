@@ -304,10 +304,25 @@ export async function deleteJob(auth, kind, id) {
 
 /**
  * Lanza un job manualmente. Devuelve el UPID de la tarea creada.
- * Endpoints de ejecución de PBS (best-effort): /admin/{kind}/{id}.
+ *  - sync:   POST /admin/sync/{id}
+ *  - verify: PBS no expone /admin/verify/{id}; se lanza la verificación sobre el
+ *            datastore del job (POST /admin/datastore/{store}/verify) heredando
+ *            ignore-verified / outdated-after / ns / max-depth.
  */
 export async function runJob(auth, kind, id) {
   if (!JOB_KINDS[kind]) throw badRequest(`Tipo de job desconocido: ${kind}`);
+
+  if (kind === 'verify') {
+    const job = await pbsCall(auth, { path: `/config/verify/${encodeURIComponent(id)}` });
+    const store = job?.store;
+    if (!store) throw badRequest(`El job de verificación "${id}" no define un datastore`);
+    const body = {};
+    for (const k of ['ignore-verified', 'outdated-after', 'max-depth', 'ns']) {
+      if (job[k] != null && job[k] !== '') body[k] = job[k];
+    }
+    return pbsCall(auth, { method: 'POST', path: `/admin/datastore/${encodeURIComponent(store)}/verify`, body });
+  }
+
   return pbsCall(auth, { method: 'POST', path: `/admin/${kind}/${encodeURIComponent(id)}` });
 }
 
