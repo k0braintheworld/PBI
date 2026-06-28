@@ -15,6 +15,7 @@ import { pveRouter } from './routes/pve.js';
 import { notifyRouter } from './routes/notify.js';
 import { reportRouter } from './routes/report.js';
 import { restoreJobsRouter } from './routes/restoreJobs.js';
+import { updateRouter } from './routes/update.js';
 import { apiRouter } from './routes/api.js';
 import { startNotifier } from './notifier.js';
 import { migrateSecrets as migrateHostSecrets } from './hostStore.js';
@@ -58,6 +59,7 @@ app.use('/api/pve', pveRouter);
 app.use('/api/notify', notifyRouter);
 app.use('/api/report', reportRouter);
 app.use('/api/restore-jobs', restoreJobsRouter);
+app.use('/api/update', requireAdmin, updateRouter);
 app.use('/api', apiRouter);
 
 // Frontend compilado (producción): sirve web/dist y hace fallback SPA a index.html
