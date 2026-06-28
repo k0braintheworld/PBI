@@ -641,4 +641,11 @@ export const EN = {
   'Descargando, verificando e instalando… el servicio se reiniciará.': 'Downloading, verifying and installing… the service will restart.',
   'O instálalo a mano en el servidor:': 'Or install it manually on the server:',
   'La página se recargará automáticamente.': 'The page will reload automatically.',
+  'Para instalar desde el panel necesitas «sudo», que no está en el servidor. Instálalo (o usa la guía manual de abajo):':
+    'To install from the panel you need “sudo”, which is not on the server. Install it (or use the manual guide below):',
+  'Ocultar guía manual (SSH)': 'Hide manual guide (SSH)',
+  'Ver guía de actualización manual (SSH)': 'Show manual update guide (SSH)',
+  'Conéctate por SSH al servidor PBI (como root) y ejecuta:': 'Connect to the PBI server via SSH (as root) and run:',
+  'Verifica que el SHA-256 coincide antes de instalar. Se instala encima sin perder configuración ni datos.':
+    'Verify the SHA-256 matches before installing. It installs on top without losing configuration or data.',
 };

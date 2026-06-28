@@ -17,19 +17,32 @@ function cmpVer(a, b) {
   return 0;
 }
 
-/** Comprueba la última release de GitHub; permite descargar o instalar (1 click). */
+function CopyBox({ value, multiline, t }) {
+  const [copied, setCopied] = useState(false);
+  const copy = () => { try { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
+  return (
+    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+      {multiline
+        ? <textarea className="input mono" readOnly value={value} rows={value.split('\n').length} style={{ fontSize: 12, resize: 'none' }} onFocus={(e) => e.target.select()} />
+        : <input className="input mono" readOnly value={value} style={{ fontSize: 12.5 }} onFocus={(e) => e.target.select()} />}
+      <button className="btn sm" type="button" onClick={copy}>{copied ? t('Copiado') : t('Copiar')}</button>
+    </div>
+  );
+}
+
+/** Comprueba la última release de GitHub; permite descargar, instalar (1 click) o ver la guía manual. */
 export default function UpdateModal({ onClose }) {
   const t = useT();
   const [state, setState] = useState({ loading: true });
-  const [capable, setCapable] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [cap, setCap] = useState({});
   const [pwOpen, setPwOpen] = useState(false);
   const [pw, setPw] = useState('');
-  const [install, setInstall] = useState(null); // {busy} | {ok,msg} | {error}
+  const [install, setInstall] = useState(null);
+  const [guide, setGuide] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    api.updateCapability().then((c) => { if (!cancelled) setCapable(!!c.selfUpdate); }).catch(() => {});
+    api.updateCapability().then((c) => { if (!cancelled) setCap(c || {}); }).catch(() => {});
     fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { Accept: 'application/vnd.github+json' } })
       .then((r) => { if (!r.ok) throw new Error(`GitHub HTTP ${r.status}`); return r.json(); })
       .then((rel) => {
@@ -47,9 +60,15 @@ export default function UpdateModal({ onClose }) {
   }, []);
 
   const cmp = state.latest ? cmpVer(state.latest, APP_VERSION) : 0;
-  const cmd = state.debName ? `sudo dpkg -i ${state.debName}` : '';
-  const canInstall = cmp > 0 && capable && !!state.debUrl && !!state.sha256;
-  const copy = () => { try { navigator.clipboard.writeText(cmd); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
+  const canInstall = cmp > 0 && cap.selfUpdate && !!state.debUrl && !!state.sha256;
+  const needsSudo = cmp > 0 && cap.updater && !cap.sudo; // instalado por .deb pero falta sudo
+
+  const guideCmds = [
+    state.debUrl ? `wget ${state.debUrl}` : `# descarga el .deb de ${state.url || 'la release'}`,
+    state.debName ? `sha256sum ${state.debName}` : 'sha256sum pbi_*.deb',
+    state.sha256 ? `# esperado: ${state.sha256}` : null,
+    `dpkg -i ${state.debName || 'pbi_*.deb'}`,
+  ].filter(Boolean).join('\n');
 
   async function doInstall() {
     setInstall({ busy: true });
@@ -65,7 +84,7 @@ export default function UpdateModal({ onClose }) {
 
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ maxWidth: 560 }} onClick={(e) => e.stopPropagation()}>
+      <div className="modal" style={{ maxWidth: 580 }} onClick={(e) => e.stopPropagation()}>
         <h3 style={{ marginTop: 0 }}>{t('Actualizaciones')}</h3>
         <p className="muted" style={{ marginTop: -4 }}>{t('Versión instalada')}: <b>v{APP_VERSION}</b></p>
 
@@ -73,14 +92,16 @@ export default function UpdateModal({ onClose }) {
           <div className="spinner">{t('Comprobando…')}</div>
         ) : state.error ? (
           <div className="error-box">{t('No se pudo comprobar (¿sin acceso a GitHub?).')} <span className="muted">{state.error}</span></div>
-        ) : cmp > 0 ? (
+        ) : cmp <= 0 ? (
+          <div className="banner">{cmp < 0 ? <>{t('Tu versión es más reciente que la última publicada')} (v{state.latest}).</> : <>{t('Estás en la última versión.')} (v{state.latest})</>}</div>
+        ) : (
           <>
             <div className="banner" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Icon.bolt width={15} height={15} /> {t('Actualización disponible')}: <b>v{state.latest}</b>
             </div>
             {state.notes && (
-              <div style={{ maxHeight: 170, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', margin: '4px 0 12px', fontSize: 12.5, whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>
-                {state.notes.slice(0, 1200)}{state.notes.length > 1200 ? '…' : ''}
+              <div style={{ maxHeight: 150, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', margin: '4px 0 12px', fontSize: 12.5, whiteSpace: 'pre-wrap', color: 'var(--text-2)' }}>
+                {state.notes.slice(0, 1000)}{state.notes.length > 1000 ? '…' : ''}
               </div>
             )}
 
@@ -108,23 +129,26 @@ export default function UpdateModal({ onClose }) {
                   </div>
                 )}
 
-                {cmd && (
-                  <div className="field">
-                    <label>{canInstall ? t('O instálalo a mano en el servidor:') : t('Instala en el servidor PBI (requiere root):')}</label>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input className="input mono" readOnly value={cmd} style={{ fontSize: 12.5 }} onFocus={(e) => e.target.select()} />
-                      <button className="btn sm" type="button" onClick={copy}>{copied ? t('Copiado') : t('Copiar')}</button>
-                    </div>
-                    <span className="muted" style={{ fontSize: 11.5 }}>{t('Se instala encima sin perder la configuración ni los datos.')}</span>
+                {needsSudo && (
+                  <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '9px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 10 }}>
+                    {t('Para instalar desde el panel necesitas «sudo», que no está en el servidor. Instálalo (o usa la guía manual de abajo):')}
+                    <div style={{ marginTop: 6 }}><CopyBox value="apt install -y sudo curl" t={t} /></div>
+                  </div>
+                )}
+
+                <button className="btn sm ghost" type="button" onClick={() => setGuide((g) => !g)}>
+                  {guide ? t('Ocultar guía manual (SSH)') : t('Ver guía de actualización manual (SSH)')}
+                </button>
+                {guide && (
+                  <div className="card card-pad" style={{ marginTop: 8 }}>
+                    <p className="muted" style={{ marginTop: 0, fontSize: 12.5 }}>{t('Conéctate por SSH al servidor PBI (como root) y ejecuta:')}</p>
+                    <CopyBox value={guideCmds} multiline t={t} />
+                    <span className="muted" style={{ fontSize: 11.5 }}>{t('Verifica que el SHA-256 coincide antes de instalar. Se instala encima sin perder configuración ni datos.')}</span>
                   </div>
                 )}
               </>
             )}
           </>
-        ) : cmp < 0 ? (
-          <div className="banner">{t('Tu versión es más reciente que la última publicada')} (v{state.latest}).</div>
-        ) : (
-          <div className="banner">{t('Estás en la última versión.')} (v{state.latest})</div>
         )}
 
         <div className="btn-row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
