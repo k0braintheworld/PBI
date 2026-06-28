@@ -1,52 +1,47 @@
 import { Router } from 'express';
-import { spawn } from 'node:child_process';
 import fs from 'node:fs';
+import path from 'node:path';
+import { config } from '../config.js';
 import * as users from '../userStore.js';
 
 /**
- * Auto-actualización segura.
- *  - Solo admins, y exige re-autenticación con la contraseña del propio usuario.
- *  - La instalación real la hace un actualizador root muy acotado
- *    (/opt/pbi/pbi-update vía una regla sudoers que solo permite ESE script),
- *    que descarga el .deb de la release oficial y VERIFICA su SHA-256 antes de
- *    instalar. La contraseña de root nunca toca la aplicación.
+ * Auto-actualización segura, SIN que el servicio web escale privilegios.
+ *  - Solo admins, con re-autenticación (contraseña del propio usuario).
+ *  - El servicio solo ESCRIBE una solicitud (URL + SHA-256) en un fichero;
+ *    una unidad systemd root independiente (pbi-update.path → .service) la
+ *    detecta, descarga el .deb de la release OFICIAL, verifica el SHA-256 e
+ *    instala. La contraseña de root nunca toca la aplicación.
  */
 export const updateRouter = Router();
 
 const UPDATER = '/opt/pbi/pbi-update';
+const REQ_FILE = path.join(config.dataDir, '.update-request');
 const RELEASE_RE = /^https:\/\/github\.com\/k0braintheworld\/PBI\/releases\/download\/[^/]+\/[\w.+-]+\.deb$/;
 
-const hasUpdater = () => {
-  try { return fs.statSync(UPDATER).isFile(); } catch { return false; }
-};
-const hasSudo = () => ['/usr/bin/sudo', '/bin/sudo', '/usr/local/bin/sudo'].some((p) => {
-  try { return fs.statSync(p).isFile(); } catch { return false; }
-});
-const hasCapability = () => hasUpdater() && hasSudo();
+const hasUpdater = () => { try { return fs.statSync(UPDATER).isFile(); } catch { return false; } };
+const hasDownloader = () => ['/usr/bin/curl', '/bin/curl', '/usr/bin/wget', '/bin/wget']
+  .some((p) => { try { return fs.statSync(p).isFile(); } catch { return false; } });
 
-// Estado de la auto-instalación: si el script está y si 'sudo' está disponible.
 updateRouter.get('/capability', (req, res) => {
   const updater = hasUpdater();
-  const sudo = hasSudo();
-  res.json({ selfUpdate: updater && sudo, updater, sudo });
+  const downloader = hasDownloader();
+  res.json({ selfUpdate: updater && downloader, updater, downloader });
 });
 
-// Lanza la instalación de un .deb concreto (con re-auth + verificación de checksum)
 updateRouter.post('/apply', (req, res) => {
   const { password, url, sha256 } = req.body || {};
 
   if (!hasUpdater()) {
     return res.status(400).json({ error: 'La auto-instalación no está disponible en este sistema (instala el .deb o actualiza manualmente).' });
   }
-  if (!hasSudo()) {
-    return res.status(400).json({ error: "Falta 'sudo' en el servidor. Instálalo (apt install -y sudo) o actualiza manualmente." });
+  if (!hasDownloader()) {
+    return res.status(400).json({ error: "Falta 'curl' (o 'wget') en el servidor. Instálalo (apt install -y curl) o actualiza manualmente." });
   }
-  // Re-autenticación: contraseña del admin que la solicita
+  // Re-autenticación con la contraseña del admin que la solicita
   const u = users.getById(req.user.userId);
   if (!u || !users.verifyPassword(password || '', u.salt, u.hash)) {
     return res.status(401).json({ error: 'Contraseña incorrecta.' });
   }
-  // Validar paquete y checksum (defensa en profundidad; el script vuelve a comprobarlo)
   if (!RELEASE_RE.test(url || '')) {
     return res.status(400).json({ error: 'URL del paquete no válida (debe ser una release oficial de PBI).' });
   }
@@ -54,18 +49,13 @@ updateRouter.post('/apply', (req, res) => {
     return res.status(400).json({ error: 'Checksum SHA-256 no válido.' });
   }
 
-  // sudo -n: no interactivo; usa la regla sudoers acotada. El script descarga,
-  // verifica el checksum y lanza dpkg en una unidad transitoria desacoplada.
-  const child = spawn('sudo', ['-n', UPDATER, url, sha256], { stdio: ['ignore', 'pipe', 'pipe'] });
-  let out = '';
-  child.stdout.on('data', (d) => { out += d; });
-  child.stderr.on('data', (d) => { out += d; });
-  child.on('error', (e) => {
-    if (!res.headersSent) res.status(500).json({ error: `No se pudo ejecutar el actualizador: ${e.message}` });
-  });
-  child.on('close', (code) => {
-    if (res.headersSent) return;
-    if (code === 0) res.json({ ok: true, message: 'Actualización lanzada. El servicio se reiniciará en unos segundos.' });
-    else res.status(500).json({ error: (out.trim() || `El actualizador falló (código ${code}).`) });
-  });
+  // Escribir la solicitud de forma atómica; la unidad root la procesa.
+  try {
+    const tmp = `${REQ_FILE}.tmp`;
+    fs.writeFileSync(tmp, `${url}\n${sha256.toLowerCase()}\n`, { mode: 0o600 });
+    fs.renameSync(tmp, REQ_FILE);
+  } catch (e) {
+    return res.status(500).json({ error: `No se pudo registrar la solicitud: ${e.message}` });
+  }
+  res.json({ ok: true, message: 'Actualización solicitada: se descargará, verificará e instalará. El servicio se reiniciará en unos segundos.' });
 });

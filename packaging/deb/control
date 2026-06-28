@@ -5,7 +5,7 @@ Priority: optional
 Architecture: __ARCH__
 Maintainer: k0bra <k0bra@k0braintheworld.com>
 Depends: adduser
-Recommends: sudo, curl
+Recommends: curl | wget
 Description: PBI - Proxmox Backup Interface
  Interfaz web para gestionar Proxmox Backup Server: copias de seguridad,
  recuperacion (via Proxmox VE), trabajos programados, informes (PDF),

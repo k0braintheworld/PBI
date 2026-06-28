@@ -1,6 +1,6 @@
 [Unit]
 Description=PBI - Proxmox Backup Interface
-Documentation=https://192.168.86.9
+Documentation=https://github.com/k0braintheworld/PBI
 After=network-online.target
 Wants=network-online.target
 

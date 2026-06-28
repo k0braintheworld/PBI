@@ -61,7 +61,7 @@ export default function UpdateModal({ onClose }) {
 
   const cmp = state.latest ? cmpVer(state.latest, APP_VERSION) : 0;
   const canInstall = cmp > 0 && cap.selfUpdate && !!state.debUrl && !!state.sha256;
-  const needsSudo = cmp > 0 && cap.updater && !cap.sudo; // instalado por .deb pero falta sudo
+  const needsTool = cmp > 0 && cap.updater && !cap.downloader; // instalado por .deb pero falta curl/wget
 
   const guideCmds = [
     state.debUrl ? `wget ${state.debUrl}` : `# descarga el .deb de ${state.url || 'la release'}`,
@@ -129,10 +129,10 @@ export default function UpdateModal({ onClose }) {
                   </div>
                 )}
 
-                {needsSudo && (
+                {needsTool && (
                   <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '9px 12px', borderRadius: 8, fontSize: 12.5, marginBottom: 10 }}>
-                    {t('Para instalar desde el panel necesitas «sudo», que no está en el servidor. Instálalo (o usa la guía manual de abajo):')}
-                    <div style={{ marginTop: 6 }}><CopyBox value="apt install -y sudo curl" t={t} /></div>
+                    {t('Para instalar desde el panel necesitas «curl» (o «wget») en el servidor. Instálalo (o usa la guía manual de abajo):')}
+                    <div style={{ marginTop: 6 }}><CopyBox value="apt install -y curl" t={t} /></div>
                   </div>
                 )}
 
