@@ -143,7 +143,8 @@ export async function pbsCall(auth, { method = 'GET', path, query, body, host, v
     auth,
   });
   if (res.status < 200 || res.status >= 300) {
-    const msg = res.data?.errors || res.data?.message || `Error PBS (HTTP ${res.status})`;
+    const detail = res.data?.errors || res.data?.message || (res.raw ? res.raw.trim().slice(0, 400) : '');
+    const msg = detail || `Error PBS (HTTP ${res.status})`;
     const err = new Error(typeof msg === 'string' ? msg : JSON.stringify(msg));
     err.status = res.status === 0 ? 502 : res.status;
     err.pbs = res.data;

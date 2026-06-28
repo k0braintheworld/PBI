@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useAsync, Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
@@ -198,7 +198,11 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
   const isNew = !job.id;
   const [form, setForm] = useState(() => ({ ...job }));
   const [busy, setBusy] = useState(false);
+  const [stores, setStores] = useState([]);
   const fields = FIELDS[kind];
+
+  // Datastores reales de PBS para el desplegable (evita teclear nombres inválidos)
+  useEffect(() => { api.datastores().then((d) => setStores((d || []).map((x) => x.store))).catch(() => setStores([])); }, []);
 
   const set = (name, type) => (e) => {
     const v = type === 'checkbox' ? e.target.checked : type === 'number' ? (e.target.value === '' ? '' : Number(e.target.value)) : e.target.value;
@@ -244,7 +248,16 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
         <form onSubmit={save}>
           {fields.map((f) => (
             <div className="field" key={f.name}>
-              {f.type === 'checkbox' ? (
+              {f.name === 'store' ? (
+                <>
+                  <label>{tr(f.label)}{f.required && ' *'}</label>
+                  <select value={form[f.name] ?? ''} onChange={set(f.name)} required={f.required}>
+                    <option value="">{tr('— elegir —')}</option>
+                    {stores.map((s) => <option key={s} value={s}>{s}</option>)}
+                    {form[f.name] && !stores.includes(form[f.name]) && <option value={form[f.name]}>{form[f.name]}</option>}
+                  </select>
+                </>
+              ) : f.type === 'checkbox' ? (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center', color: 'var(--text)' }}>
                   <input type="checkbox" checked={!!form[f.name]} onChange={set(f.name, 'checkbox')} />
                   {tr(f.label)}
