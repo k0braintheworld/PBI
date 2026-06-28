@@ -619,4 +619,19 @@ export const EN = {
   '¿Lanzar ahora la copia de seguridad': 'Run the backup now',
   'Copia lanzada.': 'Backup started.',
   'Tarea:': 'Task:',
+
+  // --- Actualizaciones ---
+  'Actualizaciones': 'Updates',
+  'Versión instalada': 'Installed version',
+  'Comprobando…': 'Checking…',
+  'No se pudo comprobar (¿sin acceso a GitHub?).': 'Could not check (no GitHub access?).',
+  'Actualización disponible': 'Update available',
+  'Descargar .deb': 'Download .deb',
+  'Ver release': 'View release',
+  'Instala en el servidor PBI (requiere root):': 'Install on the PBI server (requires root):',
+  'Copiado': 'Copied',
+  'Copiar': 'Copy',
+  'Se instala encima sin perder la configuración ni los datos.': 'Installs on top without losing configuration or data.',
+  'Tu versión es más reciente que la última publicada': 'Your version is newer than the latest published',
+  'Estás en la última versión.': 'You are on the latest version.',
 };

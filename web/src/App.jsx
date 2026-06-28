@@ -12,6 +12,7 @@ import Reports from './components/Reports.jsx';
 import Cleanup from './components/Cleanup.jsx';
 import Settings from './components/Settings.jsx';
 import About from './components/About.jsx';
+import UpdateModal from './components/UpdateModal.jsx';
 import Login from './components/Login.jsx';
 import { APP_VERSION, APP_COPYRIGHT, APP_TAGLINE } from './version.js';
 import { useT, LangSwitch } from './i18n.jsx';
@@ -71,6 +72,7 @@ export default function App() {
 function AppShell({ user, onLogout }) {
   const t = useT();
   const [hosts, setHosts] = useState(undefined); // undefined=cargando
+  const [showUpdate, setShowUpdate] = useState(false);
   const [activeId, setActiveId] = useState(getActiveHost());
   const [view, setView] = useState('dashboard');
 
@@ -108,6 +110,7 @@ function AppShell({ user, onLogout }) {
   return (
     <div className="app">
       <ConfirmHost />
+      {showUpdate && <UpdateModal onClose={() => setShowUpdate(false)} />}
       <aside className="sidebar">
         <div className="brand">
           <Logo size={38} />
@@ -145,6 +148,7 @@ function AppShell({ user, onLogout }) {
           <span style={{ color: '#cfd8e4', fontWeight: 500 }}>{user.username}</span>
           <span style={{ color: 'var(--sb-text)' }}> · {user.role === 'admin' ? t('admin') : t('operador')}</span>
         </div>
+        <button className="nav-item" onClick={() => setShowUpdate(true)}><Icon.refresh /> {t('Actualizaciones')}</button>
         <button className="nav-item" onClick={onLogout}><Icon.x /> {t('Cerrar sesión')}</button>
         <div style={{ padding: '8px 8px 0', display: 'flex', justifyContent: 'center' }}><LangSwitch /></div>
         <button onClick={() => setView('about')} style={{ background: 'none', border: 'none', color: 'var(--sb-text)', opacity: .65, fontSize: 10.5, textAlign: 'center', cursor: 'pointer', padding: '8px 4px 2px', width: '100%' }}>
