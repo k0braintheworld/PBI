@@ -16,21 +16,30 @@ export const updateRouter = Router();
 const UPDATER = '/opt/pbi/pbi-update';
 const RELEASE_RE = /^https:\/\/github\.com\/k0braintheworld\/PBI\/releases\/download\/[^/]+\/[\w.+-]+\.deb$/;
 
-const hasCapability = () => {
+const hasUpdater = () => {
   try { return fs.statSync(UPDATER).isFile(); } catch { return false; }
 };
+const hasSudo = () => ['/usr/bin/sudo', '/bin/sudo', '/usr/local/bin/sudo'].some((p) => {
+  try { return fs.statSync(p).isFile(); } catch { return false; }
+});
+const hasCapability = () => hasUpdater() && hasSudo();
 
-// ¿Está disponible la auto-instalación en este sistema (instalado por .deb con sudoers)?
+// Estado de la auto-instalación: si el script está y si 'sudo' está disponible.
 updateRouter.get('/capability', (req, res) => {
-  res.json({ selfUpdate: hasCapability() });
+  const updater = hasUpdater();
+  const sudo = hasSudo();
+  res.json({ selfUpdate: updater && sudo, updater, sudo });
 });
 
 // Lanza la instalación de un .deb concreto (con re-auth + verificación de checksum)
 updateRouter.post('/apply', (req, res) => {
   const { password, url, sha256 } = req.body || {};
 
-  if (!hasCapability()) {
+  if (!hasUpdater()) {
     return res.status(400).json({ error: 'La auto-instalación no está disponible en este sistema (instala el .deb o actualiza manualmente).' });
+  }
+  if (!hasSudo()) {
+    return res.status(400).json({ error: "Falta 'sudo' en el servidor. Instálalo (apt install -y sudo) o actualiza manualmente." });
   }
   // Re-autenticación: contraseña del admin que la solicita
   const u = users.getById(req.user.userId);
