@@ -112,6 +112,10 @@ export const api = {
   pveFileList: (id, params) => req('GET', `/pve/${id}/file-restore/list?${new URLSearchParams(params)}`),
   pveFileDownloadUrl: (id, params) => `/api/pve/${id}/file-restore/download?${new URLSearchParams(params)}`,
 
+  // Auto-actualización
+  updateCapability: () => req('GET', '/update/capability'),
+  updateApply: (body) => req('POST', '/update/apply', body),
+
   // Restauraciones programadas
   restoreJobs: () => req('GET', '/restore-jobs'),
   restoreJobCreate: (body) => req('POST', '/restore-jobs', body),

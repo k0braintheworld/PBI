@@ -1,0 +1,3 @@
+# Permite al servicio PBI ejecutar ÚNICAMENTE el actualizador (nada más).
+# El script verifica el origen (release oficial) y el SHA-256 antes de instalar.
+pbi ALL=(root) NOPASSWD: /opt/pbi/pbi-update

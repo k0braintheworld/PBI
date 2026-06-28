@@ -32,6 +32,13 @@ echo "==> Empaquetando runtime de Node ($NODE_HOME)"
 mkdir -p "$PKG/opt/pbi/runtime/bin"
 cp "$NODE_HOME/bin/node" "$PKG/opt/pbi/runtime/bin/node"
 
+echo "==> Actualizador root + regla sudoers acotada"
+cp "$ROOT/packaging/deb/pbi-update" "$PKG/opt/pbi/pbi-update"
+chmod 0755 "$PKG/opt/pbi/pbi-update"
+mkdir -p "$PKG/etc/sudoers.d"
+cp "$ROOT/packaging/deb/pbi.sudoers" "$PKG/etc/sudoers.d/pbi"
+chmod 0440 "$PKG/etc/sudoers.d/pbi"
+
 echo "==> Ficheros de sistema (systemd, env, copyright)"
 mkdir -p "$PKG/etc/pbi" "$PKG/lib/systemd/system" "$PKG/DEBIAN" "$PKG/usr/share/doc/pbi"
 cp "$ROOT/packaging/deb/pbi.env" "$PKG/etc/pbi/pbi.env"

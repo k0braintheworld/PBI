@@ -35,6 +35,17 @@ fi
 chown root:pbi /etc/pbi/pbi.env || true
 chmod 640 /etc/pbi/pbi.env || true
 
+# Actualizador con privilegios: asegurar permisos y validar la regla sudoers.
+# Si la regla no es valida, se elimina para NO romper sudo en el host.
+[ -f /opt/pbi/pbi-update ] && chmod 0755 /opt/pbi/pbi-update || true
+if [ -f /etc/sudoers.d/pbi ]; then
+  chmod 0440 /etc/sudoers.d/pbi || true
+  if command -v visudo >/dev/null 2>&1; then
+    visudo -cf /etc/sudoers.d/pbi >/dev/null 2>&1 || { echo "  AVISO: regla sudoers de PBI invalida; se elimina."; rm -f /etc/sudoers.d/pbi; }
+  fi
+fi
+command -v sudo >/dev/null 2>&1 || echo "  AVISO: 'sudo' no esta instalado; la auto-instalacion desde el panel no funcionara hasta instalarlo."
+
 # Servicio
 systemctl daemon-reload >/dev/null 2>&1 || true
 systemctl enable pbi.service >/dev/null 2>&1 || true

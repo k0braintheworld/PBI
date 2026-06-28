@@ -634,4 +634,11 @@ export const EN = {
   'Se instala encima sin perder la configuración ni los datos.': 'Installs on top without losing configuration or data.',
   'Tu versión es más reciente que la última publicada': 'Your version is newer than the latest published',
   'Estás en la última versión.': 'You are on the latest version.',
+  'Instalar ahora': 'Install now',
+  'Confirma con tu contraseña de PBI para instalar:': 'Confirm with your PBI password to install:',
+  'Instalando…': 'Installing…',
+  'Instalar': 'Install',
+  'Descargando, verificando e instalando… el servicio se reiniciará.': 'Downloading, verifying and installing… the service will restart.',
+  'O instálalo a mano en el servidor:': 'Or install it manually on the server:',
+  'La página se recargará automáticamente.': 'The page will reload automatically.',
 };
