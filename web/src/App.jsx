@@ -11,23 +11,33 @@ import Tasks from './components/Tasks.jsx';
 import Reports from './components/Reports.jsx';
 import Cleanup from './components/Cleanup.jsx';
 import Settings from './components/Settings.jsx';
+import Audit from './components/Audit.jsx';
 import About from './components/About.jsx';
 import UpdateModal from './components/UpdateModal.jsx';
 import Login from './components/Login.jsx';
 import { APP_VERSION, APP_COPYRIGHT, APP_TAGLINE } from './version.js';
 import { useT, LangSwitch } from './i18n.jsx';
 
-const NAV = [
+const NAV_ALL = [
   { key: 'dashboard', label: 'Información general', icon: 'dashboard' },
   { key: 'backups', label: 'Backups', icon: 'database' },
-  { key: 'restore', label: 'Recuperación', icon: 'restore' },
-  { key: 'jobs', label: 'Tareas programadas', icon: 'jobs' },
+  { key: 'restore', label: 'Recuperación', icon: 'restore', minRole: 'operator' },
+  { key: 'jobs', label: 'Tareas programadas', icon: 'jobs', minRole: 'operator' },
   { key: 'tasks', label: 'Monitor de tareas', icon: 'activity' },
   { key: 'reports', label: 'Informes', icon: 'report' },
-  { key: 'cleanup', label: 'Limpieza', icon: 'broom' },
-  { key: 'settings', label: 'Configuración', icon: 'settings' },
+  { key: 'cleanup', label: 'Limpieza', icon: 'broom', minRole: 'operator' },
+  { key: 'audit', label: 'Auditoría', icon: 'audit', minRole: 'admin' },
+  { key: 'settings', label: 'Configuración', icon: 'settings', minRole: 'operator' },
   { key: 'about', label: 'Acerca de', icon: 'info' },
 ];
+
+// minRole: undefined=todos, 'operator'=operator+admin, 'admin'=solo admin
+function navAllowed(item, role) {
+  if (!item.minRole) return true;
+  if (item.minRole === 'admin') return role === 'admin';
+  if (item.minRole === 'operator') return role === 'admin' || role === 'operator';
+  return false;
+}
 
 const TITLES = {
   dashboard: 'Resumen general',
@@ -37,6 +47,7 @@ const TITLES = {
   tasks: 'Monitor de tareas',
   reports: 'Informes',
   cleanup: 'Limpieza de copias',
+  audit: 'Auditoría',
   settings: 'Configuración de hosts PBS',
   about: 'Acerca de PBI',
 };
@@ -103,7 +114,8 @@ function AppShell({ user, onLogout }) {
   }
 
   const noHosts = hosts.length === 0;
-  const effectiveView = noHosts ? 'settings' : view;
+  const NAV = NAV_ALL.filter((n) => navAllowed(n, user.role));
+  const effectiveView = noHosts ? (user.role === 'viewer' ? 'dashboard' : 'settings') : view;
 
   const activeHost = hosts.find((h) => h.id === activeId);
 
@@ -146,7 +158,7 @@ function AppShell({ user, onLogout }) {
         <div className="nav-section">{t('Sesión')}</div>
         <div style={{ padding: '0 8px 6px', fontSize: 12 }}>
           <span style={{ color: '#cfd8e4', fontWeight: 500 }}>{user.username}</span>
-          <span style={{ color: 'var(--sb-text)' }}> · {user.role === 'admin' ? t('admin') : t('operador')}</span>
+          <span style={{ color: 'var(--sb-text)' }}> · {user.role === 'admin' ? t('admin') : user.role === 'viewer' ? t('visor') : t('operador')}</span>
         </div>
         <button className="nav-item" onClick={() => setShowUpdate(true)}><Icon.refresh /> {t('Actualizaciones')}</button>
         <button className="nav-item" onClick={onLogout}><Icon.x /> {t('Cerrar sesión')}</button>
@@ -194,6 +206,7 @@ function AppShell({ user, onLogout }) {
             {effectiveView === 'tasks' && <Tasks />}
             {effectiveView === 'reports' && <Reports />}
             {effectiveView === 'cleanup' && <Cleanup />}
+            {effectiveView === 'audit' && <Audit />}
             {effectiveView === 'settings' && <Settings onHostsChanged={loadHosts} user={user} />}
             {effectiveView === 'about' && <About />}
           </div>
