@@ -9,8 +9,24 @@ import { URL } from 'node:url';
 
 const TIMEOUT_MS = 30000;
 
+// Agentes HTTPS COMPARTIDOS y acotados (uno por modo verifyTls): evitan el filtrado
+// de sockets que se acumulan al crear un agente nuevo en cada petición.
+const _agents = new Map();
 function agent(verifyTls) {
-  return new https.Agent({ rejectUnauthorized: !!verifyTls, keepAlive: true });
+  const key = verifyTls ? 'v' : 'n';
+  let a = _agents.get(key);
+  if (!a) {
+    a = new https.Agent({
+      rejectUnauthorized: !!verifyTls,
+      keepAlive: true,
+      keepAliveMsecs: 10000,
+      maxSockets: 8,
+      maxFreeSockets: 2,
+      timeout: 30000,
+    });
+    _agents.set(key, a);
+  }
+  return a;
 }
 
 function authHeader(pve) {

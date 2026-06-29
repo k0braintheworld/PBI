@@ -15,8 +15,25 @@ import { config } from './config.js';
 
 const REQUEST_TIMEOUT_MS = 15000;
 
+// Agentes HTTPS COMPARTIDOS y acotados (uno por modo verifyTls). Crear un agente
+// nuevo por petición con keepAlive filtra sockets que se acumulan hasta agotar el
+// proxy de PBS; con un agente reutilizado las conexiones se reciclan y se limitan.
+const _agents = new Map();
 function buildAgent(verifyTls) {
-  return new https.Agent({ rejectUnauthorized: !!verifyTls, keepAlive: true });
+  const key = verifyTls ? 'v' : 'n';
+  let a = _agents.get(key);
+  if (!a) {
+    a = new https.Agent({
+      rejectUnauthorized: !!verifyTls,
+      keepAlive: true,
+      keepAliveMsecs: 10000,
+      maxSockets: 8,        // máx. conexiones simultáneas por host
+      maxFreeSockets: 2,    // máx. en reposo
+      timeout: 30000,       // cierra los sockets inactivos
+    });
+    _agents.set(key, a);
+  }
+  return a;
 }
 
 /**
