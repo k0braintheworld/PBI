@@ -3,6 +3,7 @@ import * as users from '../userStore.js';
 import { createSession, destroySession, getSession, COOKIE } from '../session.js';
 import { config } from '../config.js';
 import { verifyToken } from '../totp.js';
+import { audit } from '../auditLog.js';
 
 export const panelAuthRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -36,19 +37,24 @@ panelAuthRouter.post('/login', wrap(async (req, res) => {
   const { username, password, totp } = req.body || {};
   const u = users.getByUsername(username);
   if (!u || !users.verifyPassword(password || '', u.salt, u.hash)) {
+    audit(req, 'auth.login', '', 'fail', `Usuario: ${username}`, { username: username || '?', role: '?' });
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   }
   if (u.totpEnabled) {
     if (!totp) return res.json({ twofaRequired: true });
     if (!verifyToken(u.totpSecret, totp)) {
+      audit(req, 'auth.login', '', 'fail', '2FA incorrecto', { username: u.username, role: u.role });
       return res.status(401).json({ error: 'Código de verificación incorrecto', twofa: true });
     }
   }
+  audit(req, 'auth.login', '', 'ok', '', { username: u.username, role: u.role });
   res.cookie(COOKIE, createSession(u), cookieOpts);
   res.json({ ok: true, user: { username: u.username, role: u.role, id: u.id } });
 }));
 
 panelAuthRouter.post('/logout', (req, res) => {
+  const s = getSession(req.signedCookies?.[COOKIE]);
+  if (s) audit(req, 'auth.logout', '', 'ok', '', { username: s.username, role: s.role });
   destroySession(req.signedCookies?.[COOKIE]);
   res.clearCookie(COOKIE);
   res.json({ ok: true });

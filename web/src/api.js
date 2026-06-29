@@ -112,6 +112,14 @@ export const api = {
   pveFileList: (id, params) => req('GET', `/pve/${id}/file-restore/list?${new URLSearchParams(params)}`),
   pveFileDownloadUrl: (id, params) => `/api/pve/${id}/file-restore/download?${new URLSearchParams(params)}`,
 
+  // Auditoría
+  auditList: (params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req('GET', `/audit${q ? `?${q}` : ''}`);
+  },
+  auditConfig: () => req('GET', '/audit/config'),
+  auditConfigSave: (body) => req('PUT', '/audit/config', body),
+
   // Auto-actualización
   updateCapability: () => req('GET', '/update/capability'),
   updateApply: (body) => req('POST', '/update/apply', body),

@@ -42,3 +42,9 @@ export function requireAdmin(req, res, next) {
   if (req.user?.role !== 'admin') return res.status(403).json({ error: 'Se requiere rol de administrador' });
   next();
 }
+
+/** Bloquea el rol 'viewer' (solo lectura). Permite admin y operator. */
+export function requireOperator(req, res, next) {
+  if (req.user?.role === 'viewer') return res.status(403).json({ error: 'Acceso de solo lectura' });
+  next();
+}

@@ -40,6 +40,9 @@ export function verifyPassword(password, salt, hash) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+export const ROLES = ['admin', 'operator', 'viewer'];
+const normRole = (r) => (ROLES.includes(r) ? r : 'operator');
+
 const mask = (u) => ({ id: u.id, username: u.username, role: u.role, createdAt: u.createdAt, totpEnabled: !!u.totpEnabled });
 
 export const count = () => readAll().length;
@@ -53,7 +56,7 @@ export function addUser({ username, password, role = 'operator' }) {
   if (!username || !password) throw httpErr(400, 'Usuario y contraseña obligatorios');
   if (users.some((u) => u.username.toLowerCase() === username.toLowerCase())) throw httpErr(409, 'Ese usuario ya existe');
   const { salt, hash } = hashPassword(password);
-  const user = { id: crypto.randomUUID(), username, role: role === 'admin' ? 'admin' : 'operator', salt, hash, createdAt: new Date().toISOString() };
+  const user = { id: crypto.randomUUID(), username, role: normRole(role), salt, hash, createdAt: new Date().toISOString() };
   users.push(user);
   writeAll(users);
   return mask(user);
@@ -74,7 +77,7 @@ export function updateUser(id, { role, password, username, resetTotp }) {
     if (u.role === 'admin' && role !== 'admin' && users.filter((x) => x.role === 'admin').length <= 1) {
       throw httpErr(400, 'No puedes quitar el rol al último administrador');
     }
-    u.role = role === 'admin' ? 'admin' : 'operator';
+    u.role = normRole(role);
   }
   if (password) {
     if (password.length < 6) throw httpErr(400, 'La contraseña debe tener al menos 6 caracteres');

@@ -4,6 +4,8 @@ import * as pbs from '../pbsService.js';
 import { getDefaultPve } from '../pveStore.js';
 import { pveGuests } from '../pveService.js';
 import { reportsRouter } from './reports.js';
+import { requireOperator } from '../session.js';
+import { audit } from '../auditLog.js';
 
 export const apiRouter = Router();
 
@@ -47,20 +49,28 @@ apiRouter.get('/jobs/:kind', wrap(async (req, res) => {
   res.json(await pbs.listJobs(req.auth, req.params.kind));
 }));
 
-apiRouter.post('/jobs/:kind', wrap(async (req, res) => {
-  res.json(await pbs.createJob(req.auth, req.params.kind, req.body));
+apiRouter.post('/jobs/:kind', requireOperator, wrap(async (req, res) => {
+  const r = await pbs.createJob(req.auth, req.params.kind, req.body);
+  audit(req, 'job.create', `${req.params.kind}:${req.body?.id || ''}`, 'ok');
+  res.json(r);
 }));
 
-apiRouter.put('/jobs/:kind/:id', wrap(async (req, res) => {
-  res.json(await pbs.updateJob(req.auth, req.params.kind, req.params.id, req.body));
+apiRouter.put('/jobs/:kind/:id', requireOperator, wrap(async (req, res) => {
+  const r = await pbs.updateJob(req.auth, req.params.kind, req.params.id, req.body);
+  audit(req, 'job.update', `${req.params.kind}:${req.params.id}`, 'ok');
+  res.json(r);
 }));
 
-apiRouter.delete('/jobs/:kind/:id', wrap(async (req, res) => {
-  res.json(await pbs.deleteJob(req.auth, req.params.kind, req.params.id));
+apiRouter.delete('/jobs/:kind/:id', requireOperator, wrap(async (req, res) => {
+  const r = await pbs.deleteJob(req.auth, req.params.kind, req.params.id);
+  audit(req, 'job.delete', `${req.params.kind}:${req.params.id}`, 'ok');
+  res.json(r);
 }));
 
-apiRouter.post('/jobs/:kind/:id/run', wrap(async (req, res) => {
-  res.json({ upid: await pbs.runJob(req.auth, req.params.kind, req.params.id) });
+apiRouter.post('/jobs/:kind/:id/run', requireOperator, wrap(async (req, res) => {
+  const upid = await pbs.runJob(req.auth, req.params.kind, req.params.id);
+  audit(req, 'job.run', `${req.params.kind}:${req.params.id}`, 'ok', String(upid || ''));
+  res.json({ upid });
 }));
 
 // --- Tareas ----------------------------------------------------------------
@@ -110,22 +120,28 @@ apiRouter.get('/cleanup/groups', wrap(async (req, res) => {
   res.json({ groups: enriched, pveKnown: !!guestIds });
 }));
 
-apiRouter.post('/cleanup/delete-group', wrap(async (req, res) => {
+apiRouter.post('/cleanup/delete-group', requireOperator, wrap(async (req, res) => {
   const { store, type, id } = req.body || {};
   if (!store || !type || !id) return res.status(400).json({ error: 'Faltan store, type o id' });
-  res.json(await pbs.deleteBackupGroup(req.auth, store, type, id));
+  const r = await pbs.deleteBackupGroup(req.auth, store, type, id);
+  audit(req, 'cleanup.delete_group', `${store}/${type}/${id}`, 'ok');
+  res.json(r);
 }));
 
-apiRouter.post('/cleanup/delete-snapshot', wrap(async (req, res) => {
+apiRouter.post('/cleanup/delete-snapshot', requireOperator, wrap(async (req, res) => {
   const { store, type, id, time } = req.body || {};
   if (!store || !type || !id || !time) return res.status(400).json({ error: 'Faltan parámetros' });
-  res.json(await pbs.deleteSnapshotItem(req.auth, store, type, id, time));
+  const r = await pbs.deleteSnapshotItem(req.auth, store, type, id, time);
+  audit(req, 'cleanup.delete_snapshot', `${store}/${type}/${id}@${time}`, 'ok');
+  res.json(r);
 }));
 
-apiRouter.post('/cleanup/gc', wrap(async (req, res) => {
+apiRouter.post('/cleanup/gc', requireOperator, wrap(async (req, res) => {
   const { store } = req.body || {};
   if (!store) return res.status(400).json({ error: 'Falta store' });
-  res.json({ upid: await pbs.runGarbageCollection(req.auth, store) });
+  const upid = await pbs.runGarbageCollection(req.auth, store);
+  audit(req, 'cleanup.gc', store, 'ok');
+  res.json({ upid });
 }));
 
 // --- Informes --------------------------------------------------------------

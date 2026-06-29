@@ -444,7 +444,7 @@ function UserManagement({ currentUser }) {
     <div>
       <div className="flex-between" style={{ marginBottom: 16 }}>
         <p className="muted" style={{ margin: 0, maxWidth: 560 }}>
-          {tr('Cuentas con acceso al panel. Los ')}<b>{tr('administradores')}</b>{tr(' gestionan usuarios y configuración; los ')}<b>{tr('operadores')}</b>{tr(' usan el panel.')}
+          {tr('Cuentas con acceso al panel. Los ')}<b>{tr('administradores')}</b>{tr(' gestionan usuarios y configuración; los ')}<b>{tr('operadores')}</b>{tr(' usan el panel; los ')}<b>{tr('visores')}</b>{tr(' solo pueden consultar (solo lectura).')}
         </p>
         <button className="btn primary" onClick={() => setEditing({})}>{tr('+ Añadir usuario')}</button>
       </div>
@@ -467,6 +467,7 @@ function UserManagement({ currentUser }) {
                     <select value={u.role} onChange={(e) => setRole(u, e.target.value)} style={{ width: 130 }} disabled={u.id === currentUser.id}>
                       <option value="admin">{tr('Administrador')}</option>
                       <option value="operator">{tr('Operador')}</option>
+                      <option value="viewer">{tr('Visor')}</option>
                     </select>
                   </td>
                   <td className="muted" style={{ fontSize: 12 }}>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</td>
@@ -521,7 +522,9 @@ function UserModal({ user, onClose, onSaved, onError, isSelf }) {
           </div>
           <div className="field"><label>{tr('Rol')}</label>
             <select value={form.role} onChange={set('role')} disabled={isSelf}>
-              <option value="operator">{tr('Operador')}</option><option value="admin">{tr('Administrador')}</option>
+              <option value="operator">{tr('Operador')}</option>
+              <option value="admin">{tr('Administrador')}</option>
+              <option value="viewer">{tr('Visor')}</option>
             </select>
             {isSelf && <span className="muted" style={{ fontSize: 11.5 }}>{tr('No puedes cambiar tu propio rol.')}</span>}
           </div>
@@ -577,7 +580,7 @@ function AccountSettings() {
     <div className="grid" style={{ gap: 16, maxWidth: 580 }}>
       <div className="card card-pad">
         <h3 style={{ marginTop: 0 }}>{tr('Mi cuenta')}</h3>
-        <p className="muted" style={{ margin: 0 }}>{acc.data.username} · {acc.data.role === 'admin' ? tr('Administrador') : tr('Operador')}</p>
+        <p className="muted" style={{ margin: 0 }}>{acc.data.username} · {acc.data.role === 'admin' ? tr('Administrador') : acc.data.role === 'viewer' ? tr('Visor') : tr('Operador')}</p>
       </div>
 
       <div className="card card-pad">
