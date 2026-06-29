@@ -27,9 +27,8 @@ contraseña y 2FA opcional**, y la interfaz está disponible en **español e ing
 ## ✨ Características
 
 ### Visión general (Dashboard)
-Panel: almacenamiento por datastore, nº de snapshots, grupos protegidos y verificaciones fallidas; 
-**dispositivos protegidos**
-por tipo (VM / CT / Host); **calendario de copias** de las últimas 5 semanas con
+Panel: almacenamiento por datastore, nº de snapshots, grupos protegidos y verificaciones fallidas;
+**dispositivos protegidos** por tipo (VM / CT / Host); **calendario de copias** de las últimas 5 semanas con
 código de color (correcta / parcial / con fallo / sin copia); donut de uso de
 almacenamiento; últimas copias; actividad reciente; y tendencia de transferencia diaria.
 
@@ -48,13 +47,13 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
 ### Tareas programadas
 - **Copias de seguridad (Proxmox VE)**: crea/edita/elimina trabajos *vzdump* con
   plantillas (diaria, GFS, etc.), selección de máquinas, retención y destino PBS.
-- **Restauraciones programadas** *(novedad)*: **tests de restauración** recurrentes
+- **Restauraciones programadas**: **tests de restauración** recurrentes
   (restaura el último backup de una VM a una VMID de pruebas para validar que tus
   copias son recuperables) o restauraciones **puntuales** a una fecha/hora futura.
   Destino configurable por trabajo (VMID de pruebas o sobrescribir, marcado como
   peligroso) y **aviso por email** al terminar.
 - **Jobs de PBS**: *prune* (retención), *verify* (integridad) y *sync* (réplica
-  externa) — listar, crear, editar, eliminar y **lanzar** manualmente, con plantillas
+  externa) — listar, crear, editar, eliminar y **lanzar manualmente**, con plantillas
   y una explicación de cada tipo.
 
 ### Monitor de tareas
@@ -83,11 +82,28 @@ una tarea (tipos y éxito/fallo configurables) y cuando termina una **restauraci
 (manual o programada). Opción para **silenciar las notificaciones nativas de Proxmox**
 (PVE y PBS) y evitar emails duplicados. Configuración SMTP con **email de prueba**.
 
+### Auto-actualización desde el panel
+Botón **Actualizaciones** en el sidebar que consulta las GitHub Releases y muestra si hay
+una versión más reciente. Si hay actualización disponible:
+- **Instalación con un clic**: pide tu contraseña de PBI (nunca la contraseña de root),
+  descarga el `.deb`, verifica el **SHA-256** y lanza la instalación mediante un servicio
+  de sistema con los privilegios justos — el proceso web **nunca escala privilegios**.
+- **Guía de actualización manual (SSH)**: si prefieres hacerlo a mano, el propio panel
+  muestra los comandos `wget` / `sha256sum` / `dpkg -i` listos para copiar.
+
 ### Seguridad y multiusuario
 - **Acceso protegido**: login con usuario/contraseña y **2FA (TOTP)** opcional; en el
   primer arranque se crea la cuenta de administrador.
-- **Usuarios y roles**: administradores (gestionan todo) y operadores; el admin puede
-  crear/editar usuarios, cambiar contraseñas y **restablecer la 2FA** de otros.
+- **Tres roles de usuario**:
+  - **Administrador**: acceso y gestión completos (usuarios, configuración, auditoría).
+  - **Operador**: uso completo del panel (copias, jobs, recuperación, limpieza…).
+  - **Visor**: acceso de **solo lectura** al dashboard, copias, monitor de tareas e
+    informes. Sin acceso a jobs, configuración, recuperación ni limpieza — tanto en la
+    interfaz como en el backend.
+- **Auditoría de acciones**: log persistente en `/var/lib/pbi/audit.jsonl` con cada
+  login/logout, creación/modificación de usuarios, lanzamiento de jobs y operaciones de
+  limpieza. Vista filtrable por usuario, acción y fecha, con **rotación configurable**
+  (tamaño máximo y nº de ficheros).
 - **Secretos cifrados en reposo** (AES-256-GCM): los token secrets de PBS/PVE y la
   contraseña SMTP se guardan cifrados; nunca se devuelven por la API.
 - **HTTPS** con certificado autofirmado generado en la instalación `.deb`.
@@ -137,7 +153,20 @@ journalctl -u pbi -f      # logs en vivo
 ```
 
 La configuración está en `/etc/pbi/pbi.env` y los datos persistentes (hosts, usuarios,
-trabajos, etc.) en `/var/lib/pbi`.
+trabajos, log de auditoría, etc.) en `/var/lib/pbi`.
+
+> **Consejo:** si instalas PBI en el propio servidor PBS, configura el host como
+> `https://127.0.0.1:8007` para conectar localmente y evitar pasar por la red.
+
+### Actualización
+
+Para actualizar a una versión nueva sin perder datos:
+
+```bash
+sudo dpkg -i pbi_<nueva_version>_amd64.deb
+```
+
+O usa el botón **Actualizaciones** del sidebar para instalar directamente desde el panel.
 
 ### Opción B — Desde el código fuente (desarrollo)
 
@@ -196,6 +225,9 @@ almacenamientos, desmarca «Separación de privilegios» al crearlo o asígnale 
 - **HTTPS** con certificado autofirmado en la instalación `.deb` (sustituible por uno
   propio en `/etc/pbi/pbi.env`).
 - Los ficheros de datos se crean con permisos `600`.
+- **Sin escalada de privilegios**: el proceso del panel (`pbi.service`) se ejecuta con
+  `NoNewPrivileges=true`. Las actualizaciones las aplica un servicio separado de sistema
+  (`pbi-update.service`) activado por fichero, sin que el proceso web toque nunca sudo.
 
 ## 🗂️ Estructura del proyecto
 
@@ -208,18 +240,21 @@ pbi/
 │     ├─ pbsClient/Service  # cliente y capa de datos de PBS
 │     ├─ pveClient/Service  # cliente y capa de datos de Proxmox VE
 │     ├─ secretCrypto.js    # cifrado de secretos en reposo (AES-256-GCM)
+│     ├─ auditLog.js        # log de auditoría con rotación configurable
 │     ├─ hostStore / pveStore / userStore / notifyStore / reportStore / restoreStore
 │     ├─ notifier / restoreWatcher        # vigilantes de email (tareas / restauraciones)
 │     ├─ reportScheduler / restoreScheduler  # programadores (informes / restauraciones)
 │     ├─ mailer.js / reportPdf.js / reportService.js
-│     └─ routes/            # auth, users, account, hosts, pve, notify, report, restore-jobs, api
+│     └─ routes/            # auth, users, account, hosts, pve, notify, report,
+│                           #   restore-jobs, audit, api, update
 └─ web/                     # frontend React + Vite
    └─ src/
-      ├─ App.jsx            # navegación + selector de host
+      ├─ App.jsx            # navegación + selector de host + control de roles
       ├─ i18n.jsx / i18n.en.js   # internacionalización ES/EN
       ├─ api.js             # cliente de la API + formateadores
       └─ components/        # Dashboard, Backups, Restore, Jobs, BackupJobs,
-                            #   RestoreJobs, Tasks, Reports, Cleanup, Settings, About…
+                            #   RestoreJobs, Tasks, Reports, Cleanup, Audit,
+                            #   Settings, UpdateModal, About…
 ```
 
 ## 📜 Scripts
