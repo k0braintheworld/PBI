@@ -34,7 +34,9 @@ transfer trend.
 
 ### Backups
 A per-datastore **snapshot** explorer with filtering by id/owner/comment, verification
-status and size. **CSV** export.
+status and size. **Encrypted** column with a 🔒 badge per snapshot (read from the
+`crypt-mode` field returned by PBS) and an encrypted-snapshot counter in the summary.
+**CSV** export.
 
 ### Recovery
 Guided restore through Proxmox VE, without touching the console:
@@ -45,7 +47,9 @@ Guided restore through Proxmox VE, without touching the console:
 
 ### Scheduled tasks
 - **Backups (Proxmox VE)**: create/edit/delete *vzdump* jobs with templates (daily, GFS,
-  etc.), machine selection, retention and PBS target.
+  etc.), machine selection, retention, PBS target and **encryption** option (`encrypt`).
+  An integrated **Help** button explains how to configure the encryption key in PVE (GUI
+  and CLI) and how to restore encrypted backups on a different cluster.
 - **Scheduled restores**: recurring **restore tests** (restore a VM's latest
   backup to a test VMID to validate that your backups are recoverable) or **one-off**
   restores at a future date/time. Per-job target (test VMID or overwrite, flagged as
@@ -77,7 +81,12 @@ space.
 ### Email notifications
 A background watcher that sends a **clean, structured** email when a task finishes
 (configurable types and success/failure) and when a **restore** finishes (manual or
-scheduled). Option to **silence Proxmox's native notifications** (PVE and PBS) to avoid
+scheduled). The email includes:
+- **Site / organisation name** in the subject, header and footer (read from the reports configuration).
+- **Backup type**: PBS category (VM / CT / Host) and Full/Incremental mode when determinable from the task log.
+- **Encryption status**: "Encrypted: Yes 🔒 / No" row when the log indicates the backup was encrypted.
+
+Option to **silence Proxmox's native notifications** (PVE and PBS) to avoid
 duplicate emails. SMTP configuration with a **test email**.
 
 ### Self-update from the panel
