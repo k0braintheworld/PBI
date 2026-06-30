@@ -24,7 +24,7 @@ export default function Dashboard({ goTo }) {
         <Kpi icon="database" tone="brand" value={counters.datastores} label={t('Datastores')} />
         <Kpi icon="shield" tone="ok" value={counters.groups.total} label={t('Grupos protegidos')} />
         <Kpi icon="layers" tone="" value={counters.snapshots} label={t('Snapshots totales')} />
-        <Kpi icon="x" tone={counters.failedVerifications ? 'err' : 'ok'} value={counters.failedVerifications} label={t('Verificaciones con fallo')} />
+        <Kpi icon="search" tone={counters.failedVerifications ? 'err' : 'ok'} value={counters.failedVerifications} label={t('Verificaciones con fallo')} />
       </div>
 
       {/* ---- Cuadrícula principal ---- */}

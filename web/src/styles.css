@@ -160,12 +160,13 @@ a:hover { text-decoration: underline; }
 .kpi-icon {
   width: 46px; height: 46px; border-radius: 11px; flex-shrink: 0;
   display: grid; place-items: center; color: var(--info);
-  background: var(--info-soft);
+  background: transparent;
 }
 .kpi-icon svg { width: 24px; height: 24px; }
-.kpi-icon.ok { color: var(--ok); background: var(--ok-soft); }
-.kpi-icon.brand { color: var(--brand); background: var(--brand-soft); }
-.kpi-icon.err { color: var(--err); background: var(--err-soft); }
+.kpi-icon.ok { color: var(--ok); }
+.kpi-icon.brand { color: var(--brand); }
+.kpi-icon.brand svg { transform: translateY(-9px); }
+.kpi-icon.err { color: var(--err); }
 .kpi .num { font-family: var(--mono); font-size: 26px; font-weight: 600; line-height: 1; letter-spacing: -1px; }
 .kpi .lbl { color: var(--text-2); font-size: 12.5px; margin-top: 4px; }
 
