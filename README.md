@@ -27,10 +27,13 @@ contraseña y 2FA opcional**, y la interfaz está disponible en **español e ing
 ## ✨ Características
 
 ### Visión general (Dashboard)
-Panel: almacenamiento por datastore, nº de snapshots, grupos protegidos y verificaciones fallidas;
-**dispositivos protegidos** por tipo (VM / CT / Host); **calendario de copias** de las últimas 5 semanas con
-código de color (correcta / parcial / con fallo / sin copia); donut de uso de
-almacenamiento; últimas copias; actividad reciente; y tendencia de transferencia diaria.
+Panel: nº de datastores, snapshots, grupos protegidos y verificaciones fallidas;
+**dispositivos protegidos** por tipo (VM / CT / Host); **calendario de copias mensual y
+navegable** (flechas para cambiar de mes) que muestra el **nº de copias por día** con
+código de color (correcta / parcial / con fallo / sin copia) y el día actual resaltado;
+**almacenamiento con dos donuts** (uso físico del NAS y tamaño lógico total de las copias
+con factor de deduplicación); últimas copias; actividad reciente; y tendencia de
+transferencia diaria. El **inicio de semana** (lunes/domingo) es configurable.
 
 ### Copias de seguridad
 Explorador de **snapshots** por datastore con filtro por id/propietario/comentario,
@@ -61,8 +64,10 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
   y una explicación de cada tipo.
 
 ### Monitor de tareas
-Historial con **auto-refresco** cada 5 s, filtro «solo en ejecución», **porcentaje de
-progreso** de las tareas en curso y visor de **log por tarea** que se actualiza en vivo.
+Historial con **auto-refresco** cada 5 s, filtro «solo en ejecución» y visor de **log por
+tarea** que se actualiza en vivo. Para los **backups en curso** muestra el **porcentaje** y
+el **log de vzdump (lado Proxmox VE)** —el mismo que ves en la consola de Proxmox—, no el
+del lado PBS (que no reporta progreso).
 
 ### Informes
 - **Resumen ejecutivo**: tasa de éxito, tareas correctas/fallidas, estado por datastore.
@@ -88,12 +93,15 @@ una tarea (tipos y éxito/fallo configurables) y cuando termina una **restauraci
 - **Tipo de copia**: categoría PBS (VM / CT / Host) y modo Full/Incremental si se puede determinar del log de la tarea.
 - **Estado de cifrado**: fila «Cifrado: Sí 🔒 / No» cuando el log indica que el backup se cifró.
 
+Las notificaciones se **activan por defecto** al configurar el SMTP (host + destinatario).
 Opción para **silenciar las notificaciones nativas de Proxmox** (PVE y PBS) y evitar
 emails duplicados. Configuración SMTP con **email de prueba**.
 
 ### Auto-actualización desde el panel
 Botón **Actualizaciones** en el sidebar que consulta las GitHub Releases y muestra si hay
-una versión más reciente. Si hay actualización disponible:
+una versión más reciente. La comprobación es **automática en segundo plano** (al abrir el
+panel y cada pocas horas): si hay versión nueva, aparece un **punto de aviso** en el botón.
+Si hay actualización disponible:
 - **Instalación con un clic**: pide tu contraseña de PBI (nunca la contraseña de root),
   descarga el `.deb`, verifica el **SHA-256** y lanza la instalación mediante un servicio
   de sistema con los privilegios justos — el proceso web **nunca escala privilegios**.
