@@ -6,7 +6,7 @@ const S = (props) => (
 
 export const Icon = {
   dashboard: (p) => (<S {...p}><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></S>),
-  database: (p) => (<S {...p}><rect x="3" y="7" width="18" height="10" rx="2" /><path d="M3 12h18" /><path d="M6.5 14.5h.01M9.5 14.5h.01" /></S>),
+  database: (p) => (<S {...p}><rect x="4" y="2" width="16" height="20" rx="2.5" /><circle cx="12" cy="9.3" r="5.2" /><circle cx="12" cy="9.3" r="1.5" /><path d="M12 9.3h.01" /><path d="M16.3 11.8 11 16.4" /><path d="M8 18.7h8" /><path d="M10 18.7v1.8M14 18.7v1.8" /></S>),
   jobs: (p) => (<S {...p}><rect x="3" y="4" width="18" height="17" rx="2" /><path d="M3 9h18M8 2v4M16 2v4" /><path d="M12 13v3l2 1.5" /></S>),
   activity: (p) => (<S {...p}><path d="M3 12h4l3 7 4-14 3 7h4" /></S>),
   report: (p) => (<S {...p}><path d="M4 20V4" /><path d="M4 20h16" /><rect x="7" y="11" width="3" height="6" rx="1" /><rect x="12" y="7" width="3" height="10" rx="1" /><rect x="17" y="13" width="3" height="4" rx="1" /></S>),
@@ -19,6 +19,7 @@ export const Icon = {
   file: (p) => (<S {...p}><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z" /><path d="M14 3v5h5" /></S>),
   check: (p) => (<S {...p}><path d="M5 12l4 4L19 6" /></S>),
   x: (p) => (<S {...p}><path d="M6 6l12 12M18 6L6 18" /></S>),
+  search: (p) => (<S {...p}><circle cx="10.5" cy="10.5" r="6" /><path d="M19.5 19.5 14.8 14.8" /></S>),
   clock: (p) => (<S {...p}><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></S>),
   download: (p) => (<S {...p}><path d="M12 3v12M7 11l5 5 5-5" /><path d="M5 21h14" /></S>),
   play: (p) => (<S {...p}><path d="M7 5l11 7-11 7z" /></S>),
