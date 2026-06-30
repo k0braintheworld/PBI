@@ -100,7 +100,6 @@ export function buildTaskEmail(task, { hostName, names = {}, sede, backupMode, e
           ${encLabel != null ? row('Cifrado', `<span style="color:${encrypted ? '#157a42' : '#6b7685'};font-weight:${encrypted ? 600 : 400}">${encLabel}</span>`) : ''}
           ${row('Máquina / objetivo', target)}
           ${row('Servidor PBS', hostName || '—')}
-          ${row('Usuario', task.user || '—')}
           ${row('Inicio', fmtDate(task.starttime))}
           ${row('Fin', fmtDate(task.endtime))}
           ${row('Duración', fmtDur(task.starttime, task.endtime))}
