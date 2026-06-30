@@ -127,6 +127,30 @@ export async function pveSilenceBackupJobs(pve, silence) {
 // El nodo va embebido en el UPID: UPID:<node>:<pid>:...
 const nodeFromUpid = (upid) => (upid || '').split(':')[1] || '';
 
+/**
+ * Lista tareas del clúster PVE (recientes + en ejecución). Útil para emparejar
+ * un backup en curso con su tarea vzdump (que sí reporta % y log completo).
+ * `running`: solo en ejecución. `type`: filtra por tipo (p.ej. 'vzdump').
+ */
+export async function pveListTasks(pve, { running = false, type } = {}) {
+  // /cluster/tasks no acepta filtros; devuelve las tareas recientes + activas
+  // de todo el clúster y filtramos en memoria.
+  const tasks = await pveCall(pve, { path: '/cluster/tasks' });
+  const arr = Array.isArray(tasks) ? tasks : [];
+  return arr
+    .filter((t) => (!type || t.type === type) && (!running || !t.endtime))
+    .map((t) => ({
+      upid: t.upid,
+      type: t.type,
+      id: t.id != null ? String(t.id) : '',
+      node: t.node || nodeFromUpid(t.upid),
+      user: t.user || '',
+      starttime: t.starttime,
+      endtime: t.endtime ?? null,
+      status: t.status || (t.endtime ? 'stopped' : 'running'),
+    }));
+}
+
 /** Estado de una tarea de PVE (running/stopped + exitstatus). */
 export function pveTaskStatus(pve, upid) {
   const node = nodeFromUpid(upid);

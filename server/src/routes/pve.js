@@ -111,6 +111,14 @@ pveRouter.delete('/:id/backup-jobs/:jobid', wrap(async (req, res) => {
 }));
 
 // --- Seguimiento de tareas de PVE ---
+pveRouter.get('/:id/tasks', wrap(async (req, res) => {
+  const h = raw(req, res); if (!h) return;
+  res.json(await pve.pveListTasks(h, {
+    running: req.query.running === '1' || req.query.running === 'true',
+    type: req.query.type || undefined,
+  }));
+}));
+
 pveRouter.get('/:id/tasks/:upid/status', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
   res.json(await pve.pveTaskStatus(h, req.params.upid));

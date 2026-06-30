@@ -23,6 +23,9 @@ export default function Tasks() {
   const [selected, setSelected] = useState(null);
   const names = useGuestNames();
 
+  const [pveId, setPveId] = useState(null);
+  const [pveRunningTasks, setPveRunningTasks] = useState([]);
+
   const tasks = useAsync(
     () => api.tasks({ limit: 300, ...(onlyRunning ? { running: '1' } : {}) }),
     [onlyRunning],
@@ -36,6 +39,40 @@ export default function Tasks() {
 
   const rows = (tasks.data || []).filter((t) => !type || t.type === type);
   const running = (tasks.data || []).filter((t) => t.endtime == null);
+  const hasRunningBackup = running.some((t) => t.type === 'backup');
+
+  // Conexión PVE por defecto (para enriquecer los backups en curso con su tarea vzdump)
+  useEffect(() => {
+    api.pveList().then((l) => {
+      const def = (l || []).find((p) => p.isDefault) || (l || [])[0];
+      setPveId(def ? def.id : null);
+    }).catch(() => {});
+  }, []);
+
+  // Mientras haya un backup en marcha, sondear las tareas vzdump en ejecución de PVE
+  useEffect(() => {
+    if (!pveId || !hasRunningBackup) { setPveRunningTasks([]); return undefined; }
+    let stop = false; let timer;
+    async function tick() {
+      try {
+        const list = await api.pveTasks(pveId, { running: 1, type: 'vzdump' });
+        if (!stop) setPveRunningTasks(Array.isArray(list) ? list : []);
+      } catch { /* ignore */ }
+      if (!stop) timer = setTimeout(tick, 5000);
+    }
+    tick();
+    return () => { stop = true; if (timer) clearTimeout(timer); };
+  }, [pveId, hasRunningBackup]);
+
+  // Empareja un backup PBS en curso con su tarea vzdump de PVE (por VMID; si solo
+  // hay una vzdump activa, se usa esa). Devuelve { id, upid } para leer su log/%.
+  function matchPve(task) {
+    if (!pveId || task.endtime != null || task.type !== 'backup' || !pveRunningTasks.length) return null;
+    const vmid = vmidFromTaskId(task.id);
+    const m = pveRunningTasks.find((p) => p.id === vmid)
+      || (pveRunningTasks.length === 1 ? pveRunningTasks[0] : null);
+    return m ? { id: pveId, upid: m.upid } : null;
+  }
 
   return (
     <div className="rise">
@@ -87,7 +124,7 @@ export default function Tasks() {
                   <td className="muted">{t.user}</td>
                   <td title={fmtDate(t.starttime)}>{fmtAgo(t.starttime)}</td>
                   <td className="mono">{fmtDuration(t.starttime, t.endtime)}</td>
-                  <td>{t.endtime == null ? <RunningProgress upid={t.upid} /> : <TaskBadge task={t} />}</td>
+                  <td>{t.endtime == null ? <RunningProgress upid={t.upid} pve={matchPve(t)} /> : <TaskBadge task={t} />}</td>
                   <td><button className="btn sm ghost" onClick={() => setSelected(t)}>{tr('Ver log')}</button></td>
                 </tr>
               ))}
@@ -99,24 +136,27 @@ export default function Tasks() {
         )}
       </div>
 
-      {selected && <TaskLogModal task={selected} onClose={() => setSelected(null)} />}
+      {selected && <TaskLogModal task={selected} pve={matchPve(selected)} onClose={() => setSelected(null)} />}
     </div>
   );
 }
 
 /** Lee el log de una tarea en curso y muestra una barra de progreso (si el log lo reporta). */
-function RunningProgress({ upid }) {
+function RunningProgress({ upid, pve }) {
   const tr = useT();
   const [pct, setPct] = useState(null);
   useEffect(() => {
     let stop = false; let timer;
     async function tick() {
-      try { const log = await api.taskLog(upid); if (!stop) setPct(parseProgress(log)); } catch { /* ignore */ }
+      try {
+        const log = pve ? await api.pveTaskLog(pve.id, pve.upid) : await api.taskLog(upid);
+        if (!stop) setPct(parseProgress(log));
+      } catch { /* ignore */ }
       if (!stop) timer = setTimeout(tick, 3000);
     }
     tick();
     return () => { stop = true; if (timer) clearTimeout(timer); };
-  }, [upid]);
+  }, [upid, pve?.id, pve?.upid]);
 
   if (pct == null) return <span className="badge run">{tr('en ejecución')}</span>;
   return (
@@ -127,9 +167,12 @@ function RunningProgress({ upid }) {
   );
 }
 
-function TaskLogModal({ task, onClose }) {
+function TaskLogModal({ task, pve, onClose }) {
   const tr = useT();
-  const log = useAsync(() => api.taskLog(task.upid), [task.upid]);
+  const log = useAsync(
+    () => (pve ? api.pveTaskLog(pve.id, pve.upid) : api.taskLog(task.upid)),
+    [task.upid, pve?.id, pve?.upid],
+  );
   const running = task.endtime == null;
   const pct = running ? parseProgress(log.data) : null;
   const logRef = useRef(null);
@@ -174,7 +217,7 @@ function TaskLogModal({ task, onClose }) {
           </div>
         )}
         <div className="btn-row" style={{ justifyContent: 'space-between', marginTop: 14 }}>
-          <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>{running ? tr('Actualizándose cada 3 s…') : `${tr('Finalizada')} · ${fmtDate(task.endtime)}`}</span>
+          <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>{running ? (pve ? tr('Log de PVE (vzdump) · actualizándose cada 3 s…') : tr('Actualizándose cada 3 s…')) : `${tr('Finalizada')} · ${fmtDate(task.endtime)}`}</span>
           <button className="btn" onClick={onClose}>{tr('Cerrar')}</button>
         </div>
       </div>

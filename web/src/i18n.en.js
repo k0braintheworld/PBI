@@ -191,6 +191,7 @@ export const EN = {
   'Progreso': 'Progress',
   '(sin salida)': '(no output)',
   'Actualizándose cada 3 s…': 'Refreshing every 3 s…',
+  'Log de PVE (vzdump) · actualizándose cada 3 s…': 'PVE log (vzdump) · refreshing every 3 s…',
   'Finalizada': 'Finished',
 
   // --- Limpieza ---
