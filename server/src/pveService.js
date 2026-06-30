@@ -62,7 +62,7 @@ export async function pveRunBackupJob(pve, jobId) {
 
   // Solo parámetros válidos de vzdump (no los campos propios del job: id, schedule…)
   const VZ = ['storage', 'mode', 'compress', 'prune-backups', 'notes-template', 'mailto',
-    'notification-mode', 'bwlimit', 'pigz', 'zstd', 'performance', 'fleecing', 'protected', 'ionice'];
+    'notification-mode', 'bwlimit', 'pigz', 'zstd', 'performance', 'fleecing', 'protected', 'ionice', 'encrypt'];
   const base = {};
   for (const k of VZ) {
     let v = job[k];

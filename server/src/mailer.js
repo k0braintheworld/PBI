@@ -68,7 +68,7 @@ const pbsBackupType = (id) => {
 };
 
 /** Construye {subject, html, text} para una tarea finalizada. */
-export function buildTaskEmail(task, { hostName, names = {}, sede, backupMode } = {}) {
+export function buildTaskEmail(task, { hostName, names = {}, sede, backupMode, encrypted } = {}) {
   const st = statusOf(task);
   const site = sede || 'PBI';
   const vmid = vmidFromId(task.id);
@@ -80,6 +80,7 @@ export function buildTaskEmail(task, { hostName, names = {}, sede, backupMode } 
   const btype = task.type === 'backup' ? pbsBackupType(task.id) : null;
   const bmode = backupMode ? (backupMode === 'incremental' ? 'Incremental' : 'Completa') : null;
   const backupTypeLabel = [btype, bmode].filter(Boolean).join(' · ');
+  const encLabel = encrypted != null ? (encrypted ? 'Sí &#128274;' : 'No') : null;
 
   const html = `<!doctype html><html><body style="margin:0;background:#eef1f5;padding:24px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">
   <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
@@ -96,6 +97,7 @@ export function buildTaskEmail(task, { hostName, names = {}, sede, backupMode } 
           ${row('Estado', `<span style="color:${st.color}">${st.label}</span>`)}
           ${row('Tipo de tarea', taskLabel(task.type))}
           ${backupTypeLabel ? row('Tipo de copia', escapeHtml(backupTypeLabel)) : ''}
+          ${encLabel != null ? row('Cifrado', `<span style="color:${encrypted ? '#157a42' : '#6b7685'};font-weight:${encrypted ? 600 : 400}">${encLabel}</span>`) : ''}
           ${row('Máquina / objetivo', target)}
           ${row('Servidor PBS', hostName || '—')}
           ${row('Usuario', task.user || '—')}
@@ -115,6 +117,7 @@ export function buildTaskEmail(task, { hostName, names = {}, sede, backupMode } 
     `${site} — ${taskLabel(task.type)} ${st.label}`,
     `Estado:    ${st.label} (${task.status || '—'})`,
     backupTypeLabel ? `Tipo copia: ${backupTypeLabel}` : '',
+    encrypted != null ? `Cifrado:   ${encrypted ? 'Sí' : 'No'}` : '',
     `Objetivo:  ${target}`,
     `Servidor:  ${hostName || '—'}`,
     `Inicio:    ${fmtDate(task.starttime)}`,

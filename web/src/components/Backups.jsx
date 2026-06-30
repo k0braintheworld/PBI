@@ -5,6 +5,13 @@ import { useGuestNames } from '../guestNames.js';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
 
+const snapCryptMode = (snap) => {
+  const files = snap.files || [];
+  if (files.some(f => f['crypt-mode'] === 'encrypt')) return 'encrypt';
+  if (files.some(f => f['crypt-mode'] === 'sign-only')) return 'sign-only';
+  return 'none';
+};
+
 /** Explorador de backups: selecciona datastore y lista sus snapshots. */
 export default function Backups() {
   const t = useT();
@@ -30,6 +37,7 @@ export default function Backups() {
   const totalSize = all.reduce((a, s) => a + (s.size || 0), 0);
   const groups = new Set(all.map((s) => `${s['backup-type']}/${s['backup-id']}`)).size;
   const failed = all.filter((s) => s.verification?.state === 'failed').length;
+  const encryptedCount = all.filter((s) => snapCryptMode(s) === 'encrypt').length;
 
   return (
     <div className="rise">
@@ -42,10 +50,11 @@ export default function Backups() {
         <a className="btn sm" href={api.csvUrl('snapshots', active)}><Icon.download width={14} height={14} /> {t('Exportar CSV')}</a>
       </div>
 
-      <div className="grid cols-4" style={{ marginBottom: 16 }}>
+      <div className="grid cols-5" style={{ marginBottom: 16 }}>
         <MiniStat label="Snapshots" value={all.length} />
         <MiniStat label={t('Grupos')} value={groups} />
         <MiniStat label={t('Tamaño total')} value={fmtBytes(totalSize)} />
+        <MiniStat label={t('Cifradas')} value={encryptedCount} tone={encryptedCount ? 'ok' : null} />
         <MiniStat label={t('Verif. con fallo')} value={failed} tone={failed ? 'err' : 'ok'} />
       </div>
 
@@ -70,7 +79,7 @@ export default function Backups() {
             <thead>
               <tr>
                 <th>{t('Tipo')}</th><th>ID</th><th>{t('Fecha')}</th><th className="num">{t('Tamaño')}</th>
-                <th>{t('Propietario')}</th><th>{t('Verificación')}</th><th>{t('Comentario')}</th>
+                <th>{t('Propietario')}</th><th>{t('Cifrado')}</th><th>{t('Verificación')}</th><th>{t('Comentario')}</th>
               </tr>
             </thead>
             <tbody>
@@ -86,12 +95,13 @@ export default function Backups() {
                   <td title={fmtDate(s['backup-time'])}>{fmtAgo(s['backup-time'])}</td>
                   <td className="num">{fmtBytes(s.size)}</td>
                   <td className="muted">{s.owner}</td>
+                  <td><CryptBadge mode={snapCryptMode(s)} t={t} /></td>
                   <td><VerifyBadge state={s.verification?.state} /></td>
                   <td className="muted">{s.comment || '—'}</td>
                 </tr>
               ))}
               {!rows.length && (
-                <tr><td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 28 }}>
+                <tr><td colSpan={8} className="muted" style={{ textAlign: 'center', padding: 28 }}>
                   {all.length ? t('Ningún snapshot coincide con el filtro') : t('Sin snapshots en este datastore')}
                 </td></tr>
               )}
@@ -101,6 +111,18 @@ export default function Backups() {
       </div>
     </div>
   );
+}
+
+function CryptBadge({ mode, t }) {
+  if (mode === 'encrypt') return (
+    <span className="badge ok plain" title={t('Cifrada')} style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+      <Icon.lock width={11} height={11} /> {t('Cifrada')}
+    </span>
+  );
+  if (mode === 'sign-only') return (
+    <span className="badge warn plain" title={t('Solo firmada')} style={{ fontSize: 11 }}>{t('Firmada')}</span>
+  );
+  return <span className="muted">—</span>;
 }
 
 function MiniStat({ label, value, tone }) {

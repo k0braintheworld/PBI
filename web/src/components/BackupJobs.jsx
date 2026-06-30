@@ -128,7 +128,10 @@ export default function BackupJobs() {
                   </td>
                   <td><span className="badge info plain">{j.schedule || 'manual'}</span>{j['next-run'] && <div className="muted" style={{ fontSize: 11 }}>{tr('próx.')} {fmtDate(j['next-run'])}</div>}</td>
                   <td className="muted" style={{ fontSize: 12.5 }}>{pruneSummary(j['prune-backups'], tr)}</td>
-                  <td className="mono" style={{ fontSize: 12 }}>{j.storage}</td>
+                  <td className="mono" style={{ fontSize: 12 }}>
+                    {j.storage}
+                    {j.encrypt ? <span className="badge ok plain" style={{ marginLeft: 6, fontSize: 11 }}>&#128274; {tr('cifrado')}</span> : null}
+                  </td>
                   <td>{j.enabled ? <span className="badge ok">{tr('activo')}</span> : <span className="badge muted">{tr('deshabilitado')}</span>}</td>
                   <td>
                     <div className="btn-row" style={{ flexWrap: 'nowrap' }}>
@@ -173,6 +176,7 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
       storage: job.storage || storages[0]?.storage || '',
       mode: job.mode || 'snapshot',
       enabled: job.enabled === undefined ? true : !!job.enabled,
+      encrypt: !!job.encrypt,
       selAll: !!job.all,
       vmids: new Set(job.vmid ? String(job.vmid).split(',') : []),
       keep,
@@ -203,12 +207,14 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
         comment: form.comment,
         compress: 'zstd',
       };
+      if (form.encrypt) body.encrypt = 1;
       if (prune) body['prune-backups'] = prune;
       const del = [];
       if (form.selAll) { body.all = 1; del.push('vmid', 'pool'); }
       else { body.vmid = [...form.vmids].join(','); del.push('all', 'pool'); }
       if (!prune && !isNew) del.push('prune-backups');
       if (!form.comment && !isNew) del.push('comment');
+      if (!isNew && !form.encrypt) del.push('encrypt');
       if (!isNew && del.length) body.delete = del.filter((d) => d !== 'comment' || !form.comment).join(',');
 
       if (isNew) await api.pveCreateBackupJob(pveId, body);
@@ -295,9 +301,21 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
             </div>
           </div>
 
-          <label style={{ display: 'flex', gap: 8, alignItems: 'center', margin: '4px 0 16px' }}>
-            <input type="checkbox" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} /><span className="muted">{tr('Trabajo habilitado')}</span>
-          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '4px 0 16px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="checkbox" checked={form.encrypt} onChange={(e) => set('encrypt', e.target.checked)} />
+              <span style={{ fontWeight: 500 }}>{tr('Cifrar los datos (encrypt)')}</span>
+            </label>
+            {form.encrypt && (
+              <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 12 }}>
+                {tr('Requiere clave de cifrado configurada en PVE para el almacenamiento PBS seleccionado.')}
+              </p>
+            )}
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <input type="checkbox" checked={form.enabled} onChange={(e) => set('enabled', e.target.checked)} />
+              <span className="muted">{tr('Trabajo habilitado')}</span>
+            </label>
+          </div>
 
           <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" className="btn" onClick={onClose}>{tr('Cancelar')}</button>

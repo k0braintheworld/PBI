@@ -33,4 +33,6 @@ export const Icon = {
   broom: (p) => (<S {...p}><path d="M19 5l-7 7M14 7l3 3M11 10l-5 5c-1 1-1 3 0 4s3 1 4 0l5-5M6 19l-2 2" /></S>),
   info: (p) => (<S {...p}><circle cx="12" cy="12" r="9" /><path d="M12 11v5M12 8h.01" /></S>),
   audit: (p) => (<S {...p}><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2" /><rect x="9" y="3" width="6" height="4" rx="1.5" /><path d="M9 12h6M9 16h4" /></S>),
+  lock: (p) => (<S {...p}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 8 0v4" /></S>),
+  lockOpen: (p) => (<S {...p}><rect x="5" y="11" width="14" height="10" rx="2" /><path d="M8 11V7a4 4 0 0 1 7.4-1" /></S>),
 };
