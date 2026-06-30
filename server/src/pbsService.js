@@ -330,13 +330,50 @@ export async function runJob(auth, kind, id) {
 // Tareas (task log)
 // ---------------------------------------------------------------------------
 
-export async function listTasks(auth, { limit = 100, running, store, type, since } = {}) {
+export async function listTasks(auth, { limit = 100, running, store, type, since, until } = {}) {
   const query = { limit, errors: 0 };
   if (running) query.running = 1;
   if (store) query.store = store;
   if (since) query.since = since;
+  if (until) query.until = until;
+  if (type) query.typefilter = type;
   const tasks = await pbsCall(auth, { path: `/nodes/${nodeOf(auth)}/tasks`, query });
   return Array.isArray(tasks) ? tasks.map(normalizeTask) : tasks;
+}
+
+/** Calendario de copias por día para el rango [from, to] (YYYY-MM-DD, inclusivo). */
+export async function getBackupCalendar(auth, { from, to }) {
+  const DAY = 86400;
+  const fromTs = Math.floor(Date.parse(`${from}T00:00:00Z`) / 1000);
+  const toTs = Math.floor(Date.parse(`${to}T00:00:00Z`) / 1000) + DAY; // fin del día 'to'
+  let tasks = [];
+  try {
+    tasks = await listTasks(auth, { limit: 8000, since: fromTs, until: toTs, type: 'backup' });
+  } catch {
+    tasks = [];
+  }
+  const buckets = new Map();
+  for (const t of tasks) {
+    if (t.type !== 'backup' || !t.starttime) continue;
+    const key = new Date(t.starttime * 1000).toISOString().slice(0, 10);
+    const b = buckets.get(key) || { total: 0, failed: 0, ok: 0 };
+    b.total += 1;
+    if (t.endtime != null) { if (isTaskOk(t.status)) b.ok += 1; else b.failed += 1; }
+    buckets.set(key, b);
+  }
+  const out = [];
+  for (let ts = fromTs; ts < toTs; ts += DAY) {
+    const key = new Date(ts * 1000).toISOString().slice(0, 10);
+    const b = buckets.get(key);
+    let status = 'none';
+    if (b) {
+      if (b.failed > 0 && b.ok > 0) status = 'partial';
+      else if (b.failed > 0) status = 'failed';
+      else if (b.total > 0) status = 'ok';
+    }
+    out.push({ date: key, status, total: b?.total || 0, failed: b?.failed || 0 });
+  }
+  return out;
 }
 
 export async function getTaskStatus(auth, upid) {
