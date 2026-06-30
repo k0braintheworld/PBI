@@ -16,13 +16,40 @@ export default function Settings({ onHostsChanged, user }) {
         <button className={section === 'pve' ? 'active' : ''} onClick={() => setSection('pve')}>{tr('Proxmox VE (recuperación)')}</button>
         <button className={section === 'notify' ? 'active' : ''} onClick={() => setSection('notify')}>{tr('Notificaciones')}</button>
         {isAdmin && <button className={section === 'users' ? 'active' : ''} onClick={() => setSection('users')}>{tr('Usuarios')}</button>}
+        <button className={section === 'prefs' ? 'active' : ''} onClick={() => setSection('prefs')}>{tr('Preferencias')}</button>
         <button className={section === 'account' ? 'active' : ''} onClick={() => setSection('account')}>{tr('Mi cuenta')}</button>
       </div>
       {section === 'pbs' && <PbsHosts onHostsChanged={onHostsChanged} />}
       {section === 'pve' && <PveHosts />}
       {section === 'notify' && <NotifySettings />}
+      {section === 'prefs' && <Preferences />}
       {section === 'users' && isAdmin && <UserManagement currentUser={user} />}
       {section === 'account' && <AccountSettings />}
+    </div>
+  );
+}
+
+/* ===================== Preferencias de interfaz ===================== */
+function Preferences() {
+  const tr = useT();
+  const [weekStart, setWeekStart] = useState(
+    (typeof localStorage !== 'undefined' && localStorage.getItem('pbi_week_start')) || 'mon',
+  );
+  function change(v) {
+    setWeekStart(v);
+    try { localStorage.setItem('pbi_week_start', v); } catch { /* ignore */ }
+  }
+  return (
+    <div className="card card-pad" style={{ maxWidth: 520 }}>
+      <h3 style={{ marginTop: 0 }}>{tr('Preferencias de interfaz')}</h3>
+      <label style={{ fontSize: 13, color: 'var(--text-2)' }}>{tr('Inicio de semana')}</label>
+      <div style={{ marginTop: 6 }}>
+        <select className="input" value={weekStart} onChange={(e) => change(e.target.value)} style={{ maxWidth: 220 }}>
+          <option value="mon">{tr('Lunes')}</option>
+          <option value="sun">{tr('Domingo')}</option>
+        </select>
+      </div>
+      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{tr('Afecta al calendario de copias del panel. Se guarda en este navegador.')}</p>
     </div>
   );
 }

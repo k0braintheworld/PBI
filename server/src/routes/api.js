@@ -96,6 +96,13 @@ apiRouter.get('/tasks/:upid/log', wrap(async (req, res) => {
   }));
 }));
 
+// Calendario de copias por día para un mes/rango (YYYY-MM-DD)
+apiRouter.get('/calendar', wrap(async (req, res) => {
+  const { from, to } = req.query;
+  if (!from || !to) return res.status(400).json({ error: 'Faltan from/to' });
+  res.json(await pbs.getBackupCalendar(req.auth, { from, to }));
+}));
+
 // --- Limpieza --------------------------------------------------------------
 
 // Lista de grupos de backup con tamaño, protección y si están huérfanos (su VM ya no existe en PVE)

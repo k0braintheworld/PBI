@@ -87,6 +87,7 @@ export const api = {
     return req('GET', `/tasks${q ? `?${q}` : ''}`);
   },
   taskLog: (upid) => req('GET', `/tasks/${encodeURIComponent(upid)}/log`),
+  calendar: (from, to) => req('GET', `/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   taskStatus: (upid) => req('GET', `/tasks/${encodeURIComponent(upid)}/status`),
 
   // Proxmox VE / Recuperación
