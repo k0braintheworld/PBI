@@ -392,6 +392,25 @@ pvesm set ${store} --encryption-key /etc/pve/priv/pbs-enc.json
 proxmox-backup-client key paperkey /etc/pve/priv/pbs-enc.json > ~/pbs-enc-paperkey.txt`}</Pre>
         </div>
 
+        <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
+
+        {/* Restauración */}
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 9px', fontSize: 12 }}>C</span>
+            {tr('Restauración con copias cifradas')}
+          </div>
+          <p style={{ margin: '0 0 10px', fontSize: 13, color: 'var(--text-2)' }}>
+            {tr('Las restauraciones (VM completa y ficheros) van a través de PVE, que descifra automáticamente usando la clave del storage. No es necesario introducir la clave manualmente.')}
+          </p>
+          <p style={{ margin: '0 0 6px', fontSize: 13, color: 'var(--text-2)' }}>
+            {tr('Si restauras en un PVE diferente al que hizo la copia, ese PVE necesita la misma clave:')}
+          </p>
+          <Pre>{`# Copia la clave al nuevo nodo PVE (desde el original o desde el paperkey)
+# y asígnala al storage PBS en el nuevo PVE:
+pvesm set ${store} --encryption-key /etc/pve/priv/pbs-enc.json`}</Pre>
+        </div>
+
         <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '10px 14px', borderRadius: 8, fontSize: 12.5, display: 'flex', gap: 8 }}>
           <span style={{ flexShrink: 0 }}>⚠</span>
           <span><b>{tr('Guarda la clave en un lugar seguro.')}</b> {tr('Si la pierdes, los backups cifrados son irrecuperables. Se recomienda guardar la «paperkey» impresa o en un gestor de contraseñas.')}</span>
