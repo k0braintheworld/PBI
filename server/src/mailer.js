@@ -186,12 +186,27 @@ export function buildRestoreEmail(info, result, { sede } = {}) {
 /** Email de prueba. */
 export function buildTestEmail({ hostName, sede } = {}) {
   const site = sede || 'PBI';
+  const now = Math.floor(Date.now() / 1000);
   const sample = {
-    type: 'backup', id: 'k0homenas:vm/103', user: 'root@pam',
-    starttime: Math.floor(Date.now() / 1000) - 184, endtime: Math.floor(Date.now() / 1000), status: 'OK',
+    type: 'backup', id: 'ejemplo-store:vm/999',
+    starttime: now - 184, endtime: now, status: 'OK',
   };
-  const m = buildTaskEmail(sample, { hostName: hostName || 'PBS (prueba)', names: { 103: 'hbm-Server' }, sede, backupMode: 'incremental' });
-  return { ...m, subject: `[${site}] Email de prueba ✅` };
+  const m = buildTaskEmail(sample, {
+    hostName: hostName || '—',
+    names: { 999: 'ejemplo-vm' },
+    sede,
+    backupMode: 'incremental',
+  });
+  // Añadir banner de prueba al principio del HTML
+  const banner = `<tr><td colspan="2" style="background:#fffbe6;border:1.5px solid #f0c050;border-radius:8px;padding:10px 16px;font-size:12.5px;color:#7a5c00;font-weight:600;text-align:center;margin-bottom:8px">
+    &#9888;&#65039; Este es un email de PRUEBA generado por PBI. Las notificaciones reales incluirán los datos reales de tus tareas.
+  </td></tr>`;
+  const html = m.html.replace(
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0">',
+    `${banner}<table role="presentation" width="100%" cellpadding="0" cellspacing="0">`,
+  );
+  const text = `[EMAIL DE PRUEBA — los datos siguientes son de muestra]\n\n${m.text}`;
+  return { html, text, subject: `[${site}] Email de prueba ✅` };
 }
 
 function escapeHtml(s) {
