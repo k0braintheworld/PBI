@@ -189,6 +189,10 @@ a:hover { text-decoration: underline; }
 
 .storage-row { padding: 13px 18px; border-bottom: 1px solid var(--border); }
 .storage-row:last-child { border-bottom: none; }
+.donut-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 10px 6px 2px; }
+.donut-cell { display: flex; flex-direction: column; align-items: center; text-align: center; }
+.donut-lbl { font-size: 10.5px; color: var(--text-3); letter-spacing: .3px; font-weight: 600; text-transform: uppercase; margin-bottom: 4px; }
+.donut-cell .cap { font-size: 11.5px; color: var(--text-3); margin-top: 6px; }
 .storage-tot { text-align: center; padding: 6px 18px 2px; }
 .storage-tot .big { font-family: var(--mono); font-size: 30px; font-weight: 600; letter-spacing: -1px; }
 .storage-tot .cap { color: var(--text-3); font-size: 12px; }

@@ -191,6 +191,9 @@ export async function getDashboard(auth) {
     perDatastore,
     totalUsed: perDatastore.reduce((a, d) => a + (d.used || 0), 0),
     totalCapacity: perDatastore.reduce((a, d) => a + (d.total || 0), 0),
+    // Tamaño lógico total de las copias (suma de snapshots); con dedup suele ser
+    // mayor que el disco realmente usado.
+    logical: allSnaps.reduce((a, s) => a + (s.size || 0), 0),
   };
 
   // --- Tareas de los últimos 35 días ---

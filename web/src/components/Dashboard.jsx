@@ -18,6 +18,9 @@ export default function Dashboard({ goTo }) {
 
   const { counters, storage, transfer, lastBackups, recentTasks } = data;
   const totalPct = storage.totalCapacity ? (storage.totalUsed / storage.totalCapacity) * 100 : 0;
+  const logical = storage.logical || 0;
+  const dedup = storage.totalUsed > 0 ? logical / storage.totalUsed : 0;
+  const savingsPct = logical > 0 ? Math.max(0, (1 - storage.totalUsed / logical) * 100) : 0;
 
   return (
     <div className="rise">
@@ -50,12 +53,17 @@ export default function Dashboard({ goTo }) {
           {/* Almacenamiento */}
           <div className="card">
             <div className="panel-head"><h3>{t('Estado de almacenamiento')}</h3></div>
-            <div style={{ display: 'grid', placeItems: 'center', padding: '14px 0 6px' }}>
-              <Donut percent={totalPct} />
-            </div>
-            <div className="storage-tot">
-              <div className="big">{fmtBytes(storage.totalUsed)}</div>
-              <div className="cap">{t('de')} {fmtBytes(storage.totalCapacity)} {t('disponibles')}</div>
+            <div className="donut-duo">
+              <div className="donut-cell">
+                <div className="donut-lbl">{t('Uso del NAS')}</div>
+                <Donut percent={totalPct} size={112} />
+                <div className="cap"><b className="mono">{fmtBytes(storage.totalUsed)}</b> {t('de')} {fmtBytes(storage.totalCapacity)}</div>
+              </div>
+              <div className="donut-cell">
+                <div className="donut-lbl">{t('Datos protegidos')}</div>
+                <Donut percent={savingsPct} size={112} color="var(--info)" label={fmtBytes(logical)} sub={t('en copias')} />
+                <div className="cap">{dedup >= 1 ? <><b className="mono">≈ {dedup.toFixed(1)}×</b> {t('deduplicado')}</> : <span className="muted">{t('tamaño lógico')}</span>}</div>
+              </div>
             </div>
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 12 }}>
               {storage.perDatastore.map((d) => {

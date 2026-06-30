@@ -61,8 +61,8 @@ export function AreaChart({ data, color = 'var(--brand)', format = (v) => v, hei
   );
 }
 
-/** Donut de porcentaje de uso. */
-export function Donut({ percent, size = 132, color }) {
+/** Donut de porcentaje de uso. Con `label`/`sub` muestra texto central propio. */
+export function Donut({ percent, size = 132, color, label, sub }) {
   const r = size / 2 - 12;
   const c = 2 * Math.PI * r;
   const pct = Math.max(0, Math.min(100, percent));
@@ -76,10 +76,10 @@ export function Donut({ percent, size = 132, color }) {
         transform={`rotate(-90 ${size / 2} ${size / 2})`}
         style={{ transition: 'stroke-dasharray .5s ease' }}
       />
-      <text x="50%" y="48%" textAnchor="middle" fontSize="26" fontWeight="600" fill="var(--text)" fontFamily="var(--mono)">
-        {Math.round(pct)}%
+      <text x="50%" y="48%" textAnchor="middle" fontSize={label != null ? 18 : 26} fontWeight="600" fill="var(--text)" fontFamily="var(--mono)">
+        {label != null ? label : `${Math.round(pct)}%`}
       </text>
-      <text x="50%" y="63%" textAnchor="middle" fontSize="11" fill="var(--text-3)">{tg('usado')}</text>
+      <text x="50%" y="63%" textAnchor="middle" fontSize="11" fill="var(--text-3)">{sub != null ? sub : tg('usado')}</text>
     </svg>
   );
 }
