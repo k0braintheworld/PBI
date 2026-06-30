@@ -184,6 +184,7 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
   };
   const [form, setForm] = useState(init);
   const [busy, setBusy] = useState(false);
+  const [encryptHelp, setEncryptHelp] = useState(false);
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleVm = (vmid) => setForm((f) => {
     const s = new Set(f.vmids);
@@ -302,10 +303,16 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, margin: '4px 0 16px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8 }}>
-            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input type="checkbox" checked={form.encrypt} onChange={(e) => set('encrypt', e.target.checked)} />
-              <span style={{ fontWeight: 500 }}>{tr('Cifrar los datos (encrypt)')}</span>
-            </label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <label style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+                <input type="checkbox" checked={form.encrypt} onChange={(e) => set('encrypt', e.target.checked)} />
+                <span style={{ fontWeight: 500 }}>{tr('Cifrar los datos (encrypt)')}</span>
+              </label>
+              <button type="button" className="btn sm ghost" title={tr('Cómo configurar el cifrado')} onClick={() => setEncryptHelp(true)}
+                style={{ padding: '2px 7px', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Icon.info width={13} height={13} /> {tr('Ayuda')}
+              </button>
+            </div>
             {form.encrypt && (
               <p style={{ margin: 0, color: 'var(--text-2)', fontSize: 12 }}>
                 {tr('Requiere clave de cifrado configurada en PVE para el almacenamiento PBS seleccionado.')}
@@ -317,11 +324,82 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
             </label>
           </div>
 
+          {encryptHelp && <EncryptHelpModal onClose={() => setEncryptHelp(false)} storage={form.storage} tr={tr} />}
+
           <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" className="btn" onClick={onClose}>{tr('Cancelar')}</button>
             <button className="btn primary" disabled={busy}>{busy ? tr('Guardando…') : tr('Guardar')}</button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+function EncryptHelpModal({ onClose, storage, tr }) {
+  const store = storage || '<nombre-del-storage>';
+  const C = ({ children }) => (
+    <code style={{ background: 'var(--surface-2)', borderRadius: 4, padding: '1px 5px', fontSize: 12, fontFamily: 'monospace' }}>{children}</code>
+  );
+  const Pre = ({ children }) => (
+    <pre style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 14px', fontSize: 12, overflowX: 'auto', margin: '8px 0 0', lineHeight: 1.6 }}>{children}</pre>
+  );
+  const Step = ({ n, children }) => (
+    <div style={{ display: 'flex', gap: 10, marginBottom: 8 }}>
+      <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: '50%', background: 'var(--brand)', color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>{n}</span>
+      <span style={{ fontSize: 13.5, paddingTop: 2 }}>{children}</span>
+    </div>
+  );
+
+  return (
+    <div className="modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+      <div className="modal" style={{ maxWidth: 580, maxHeight: '85vh', overflow: 'auto' }} onClick={(e) => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+          <Icon.lock width={20} height={20} style={{ color: 'var(--brand)', flexShrink: 0 }} />
+          <h3 style={{ margin: 0 }}>{tr('Configurar cifrado PBS en PVE')}</h3>
+          <button type="button" className="btn sm ghost" style={{ marginLeft: 'auto' }} onClick={onClose}><Icon.x width={15} height={15} /></button>
+        </div>
+
+        <p style={{ margin: '0 0 16px', color: 'var(--text-2)', fontSize: 13.5 }}>
+          {tr('El cifrado de PBS es del lado del cliente: la clave vive en el nodo PVE y los datos se cifran antes de enviarse al servidor PBS. Solo hay que configurarlo una vez por storage.')}
+        </p>
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 9px', fontSize: 12 }}>A</span>
+            {tr('Interfaz gráfica de Proxmox VE')}
+          </div>
+          <Step n="1">{tr('Abre la WebUI de PVE')} → <b>Datacenter → Storage → <C>{store}</C></b></Step>
+          <Step n="2">{tr('Haz clic en')} <b>Edit</b></Step>
+          <Step n="3">{tr('En el campo')} <b>Encryption Key</b>{tr(', haz clic en')} <b>Generate</b> — {tr('PVE genera y guarda la clave automáticamente en')} <C>/etc/pve/priv/</C></Step>
+          <Step n="4">{tr('Guarda los cambios. A partir de ahora todos los backups a este storage van cifrados.')}</Step>
+        </div>
+
+        <div style={{ borderTop: '1px solid var(--border)', margin: '0 0 20px' }} />
+
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontWeight: 600, fontSize: 14, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+            <span style={{ background: 'var(--surface-2)', border: '1px solid var(--border)', borderRadius: 6, padding: '2px 9px', fontSize: 12 }}>B</span>
+            {tr('Consola (SSH en el nodo PVE)')}
+          </div>
+          <Pre>{`# 1. Genera la clave de cifrado
+proxmox-backup-client key create /etc/pve/priv/pbs-enc.json
+
+# 2. Asigna la clave al storage PBS
+pvesm set ${store} --encryption-key /etc/pve/priv/pbs-enc.json
+
+# 3. (Recomendado) Exporta copia imprimible de la clave
+proxmox-backup-client key paperkey /etc/pve/priv/pbs-enc.json > ~/pbs-enc-paperkey.txt`}</Pre>
+        </div>
+
+        <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '10px 14px', borderRadius: 8, fontSize: 12.5, display: 'flex', gap: 8 }}>
+          <span style={{ flexShrink: 0 }}>⚠</span>
+          <span><b>{tr('Guarda la clave en un lugar seguro.')}</b> {tr('Si la pierdes, los backups cifrados son irrecuperables. Se recomienda guardar la «paperkey» impresa o en un gestor de contraseñas.')}</span>
+        </div>
+
+        <div style={{ textAlign: 'right', marginTop: 18 }}>
+          <button className="btn primary" onClick={onClose}>{tr('Entendido')}</button>
+        </div>
       </div>
     </div>
   );

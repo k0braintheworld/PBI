@@ -419,6 +419,23 @@ export const EN = {
   'Cifrar los datos (encrypt)': 'Encrypt data (encrypt)',
   'Requiere clave de cifrado configurada en PVE para el almacenamiento PBS seleccionado.': 'Requires an encryption key configured in PVE for the selected PBS storage.',
   'cifrado': 'encrypted',
+  'Cómo configurar el cifrado': 'How to configure encryption',
+  'Ayuda': 'Help',
+  'Configurar cifrado PBS en PVE': 'Configure PBS encryption in PVE',
+  'El cifrado de PBS es del lado del cliente: la clave vive en el nodo PVE y los datos se cifran antes de enviarse al servidor PBS. Solo hay que configurarlo una vez por storage.':
+    'PBS encryption is client-side: the key lives on the PVE node and data is encrypted before being sent to the PBS server. It only needs to be configured once per storage.',
+  'Interfaz gráfica de Proxmox VE': 'Proxmox VE graphical interface',
+  'Abre la WebUI de PVE': 'Open the PVE WebUI',
+  'Haz clic en': 'Click',
+  'En el campo': 'In the',
+  ', haz clic en': ', click',
+  'PVE genera y guarda la clave automáticamente en': 'PVE generates and saves the key automatically in',
+  'Guarda los cambios. A partir de ahora todos los backups a este storage van cifrados.': 'Save changes. From now on all backups to this storage will be encrypted.',
+  'Consola (SSH en el nodo PVE)': 'Console (SSH on the PVE node)',
+  'Guarda la clave en un lugar seguro.': 'Store the key in a safe place.',
+  'Si la pierdes, los backups cifrados son irrecuperables. Se recomienda guardar la «paperkey» impresa o en un gestor de contraseñas.':
+    'If you lose it, encrypted backups are unrecoverable. It is recommended to save the printed «paperkey» or store it in a password manager.',
+  'Entendido': 'Got it',
   'Selecciona al menos una máquina o marca «Todas»': 'Select at least one machine or check “All”',
   'Selecciona el almacenamiento destino': 'Select the target storage',
 
