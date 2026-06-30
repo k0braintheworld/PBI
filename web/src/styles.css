@@ -131,6 +131,7 @@ a:hover { text-decoration: underline; }
 .grid { display: grid; gap: 16px; }
 .grid.cols-2 { grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); }
 .grid.cols-4 { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.grid.cols-5 { grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
 .dash { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; align-items: start; }
 .span-2 { grid-column: span 2; }
 .span-3 { grid-column: span 3; }
