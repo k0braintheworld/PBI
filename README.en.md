@@ -26,11 +26,13 @@ optional 2FA**, and the interface is available in **Spanish and English**.
 ## ✨ Features
 
 ### Overview (Dashboard)
-Panel: storage per datastore, snapshot count,
-protected groups and failed verifications; **protected devices** by type (VM / CT /
-Host); a **backup calendar** for the last 5 weeks, colour-coded (successful / partial /
-failed / no backup); a storage-usage donut; latest backups; recent activity; and a daily
-transfer trend.
+Panel: datastore, snapshot, protected-group and failed-verification counts; **protected
+devices** by type (VM / CT / Host); a **monthly, navigable backup calendar** (arrows to
+change month) showing the **number of backups per day**, colour-coded (successful /
+partial / failed / no backup) with today highlighted; **storage with two donuts** (physical
+NAS usage and the total logical size of all backups with the deduplication factor); latest
+backups; recent activity; and a daily transfer trend. The **week start** (Monday/Sunday) is
+configurable.
 
 ### Backups
 A per-datastore **snapshot** explorer with filtering by id/owner/comment, verification
@@ -59,8 +61,10 @@ Guided restore through Proxmox VE, without touching the console:
   each type.
 
 ### Task monitor
-History with **auto-refresh** every 5 s, an "only running" filter, **progress
-percentage** for running tasks and a per-task **log viewer** that updates live.
+History with **auto-refresh** every 5 s, an "only running" filter and a per-task **log
+viewer** that updates live. For **running backups** it shows the **percentage** and the
+**vzdump log (Proxmox VE side)** — the same one you see in the Proxmox console — rather
+than the PBS-side task (which reports no progress).
 
 ### Reports
 - **Executive summary**: success rate, successful/failed tasks, status per datastore.
@@ -86,12 +90,15 @@ scheduled). The email includes:
 - **Backup type**: PBS category (VM / CT / Host) and Full/Incremental mode when determinable from the task log.
 - **Encryption status**: "Encrypted: Yes 🔒 / No" row when the log indicates the backup was encrypted.
 
+Notifications are **enabled by default** once SMTP is configured (host + recipient).
 Option to **silence Proxmox's native notifications** (PVE and PBS) to avoid
 duplicate emails. SMTP configuration with a **test email**.
 
 ### Self-update from the panel
 The **Updates** button in the sidebar checks GitHub Releases and shows whether a newer
-version is available. When an update is found:
+version is available. The check runs **automatically in the background** (on load and every
+few hours): when a newer version exists, a **notification dot** appears on the button.
+When an update is found:
 - **One-click install**: asks for your PBI password (never the root password), downloads
   the `.deb`, verifies its **SHA-256** and triggers installation through a dedicated
   system service with the minimum required privileges — the web process **never
