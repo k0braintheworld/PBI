@@ -6,6 +6,7 @@ import { authForHost } from '../authResolver.js';
 import { pveSilenceBackupJobs } from '../pveService.js';
 import { setNotificationMatcherDisabled } from '../pbsService.js';
 import { sendMail, buildTestEmail } from '../mailer.js';
+import { getRaw as getReportCfg } from '../reportStore.js';
 
 export const notifyRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -52,7 +53,8 @@ notifyRouter.post('/test', wrap(async (req, res) => {
   }
   try {
     const host = getDefaultHost();
-    await sendMail(smtp, buildTestEmail({ hostName: host?.name }));
+    const sede = getReportCfg()?.sede || '';
+    await sendMail(smtp, buildTestEmail({ hostName: host?.name, sede }));
     res.json({ ok: true });
   } catch (err) {
     res.json({ ok: false, error: err.message });

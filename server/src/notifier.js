@@ -1,9 +1,10 @@
 import { getDefaultHost } from './hostStore.js';
 import { authForHost } from './authResolver.js';
-import { listTasks } from './pbsService.js';
+import { listTasks, getTaskLog } from './pbsService.js';
 import { getDefaultPve } from './pveStore.js';
 import { pveGuests } from './pveService.js';
 import * as notifyStore from './notifyStore.js';
+import { getRaw as getReportCfg } from './reportStore.js';
 import { sendMail, buildTaskEmail } from './mailer.js';
 
 /**
@@ -15,6 +16,19 @@ import { sendMail, buildTaskEmail } from './mailer.js';
 
 const POLL_MS = 60_000;
 const isOk = (s) => s === 'OK' || /^WARNINGS/i.test(s || '');
+
+async function getBackupMode(auth, upid) {
+  try {
+    const result = await getTaskLog(auth, upid, { start: 0, limit: 40 });
+    const lines = result?.data || [];
+    const text = lines.map((l) => l.t || '').join('\n').toLowerCase();
+    if (/client.incremental|previous.backup|incremental/.test(text)) return 'incremental';
+    if (/no.previous.backup|backup.type:\s*full|full.backup/.test(text)) return 'full';
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 const notified = new Set();
 let guestCache = { ts: 0, map: {} };
@@ -60,6 +74,7 @@ async function poll() {
 
     if (!fresh.length) return;
     const names = await guestNames();
+    const sede = getReportCfg()?.sede || '';
     let maxEnd = lastSeen;
 
     for (const t of fresh) {
@@ -68,7 +83,8 @@ async function poll() {
       if ((ok && !cfg.notifyOk) || (!ok && !cfg.notifyFail)) continue;
       if (notified.has(t.upid)) continue;
       try {
-        const mail = buildTaskEmail(t, { hostName: host.name, names });
+        const backupMode = t.type === 'backup' ? await getBackupMode(auth, t.upid) : null;
+        const mail = buildTaskEmail(t, { hostName: host.name, names, sede, backupMode });
         await sendMail(cfg.smtp, mail);
         notified.add(t.upid);
       } catch (e) {
