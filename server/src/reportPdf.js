@@ -107,10 +107,17 @@ export function renderPdf(r) {
       for (const week of weeks) {
         week.forEach((c, ci) => {
           if (!c) return;
-          doc.font('Helvetica').fontSize(7.5).fillColor('#9aa3b0').text(String(c.day), M + ci * colW, y, { width: colW, align: 'center' });
-          const cx = M + ci * colW + colW / 2;
-          doc.circle(cx, y + 15, 6);
-          if (c.status === 'none') doc.fillAndStroke('#eef2f7', '#dde3ec'); else doc.fill(CAL_COLORS[c.status]);
+          const cellX = M + ci * colW;
+          doc.font('Helvetica').fontSize(7.5).fillColor('#9aa3b0').text(String(c.day), cellX, y, { width: colW, align: 'center' });
+          const sqW = 18; const sqH = 14;
+          const sx = cellX + (colW - sqW) / 2; const sy = y + 9;
+          const isNone = c.status === 'none';
+          doc.roundedRect(sx, sy, sqW, sqH, 3);
+          if (isNone) doc.fillAndStroke('#eef2f7', '#dde3ec'); else doc.fill(CAL_COLORS[c.status]);
+          if (!isNone) {
+            const count = c.status === 'failed' ? c.failed : c.total;
+            doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8).text(String(count), sx, sy + 3.5, { width: sqW, align: 'center' });
+          }
         });
         y += rowH;
       }
@@ -128,8 +135,14 @@ export function renderPdf(r) {
     }
 
     // --- Almacenamiento ---
+    const needStorage = 40 + (r.perDatastore.length || 1) * 34;
+    if (y + needStorage > bottom) { doc.addPage(); y = 50; }
     doc.fillColor(C.text).font('Helvetica-Bold').fontSize(13).text('Estado de almacenamiento', M, y);
-    y += 22;
+    y += 19;
+    const dedupTxt = r.dedup >= 1 ? `   ·   Deduplicación: ${r.dedup.toFixed(1)}x` : '';
+    doc.fillColor(C.muted).font('Helvetica').fontSize(10)
+      .text(`Tamaño total de copias (lógico): ${fmtBytes(r.backupsLogical)}${dedupTxt}`, M, y, { width: CW, align: 'center' });
+    y += 18;
     for (const s of r.perDatastore) {
       const pct = s.total ? Math.round((s.used / s.total) * 100) : 0;
       const bc = pct >= 90 ? C.err : pct >= 75 ? C.warn : C.ok;

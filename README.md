@@ -73,8 +73,9 @@ del lado PBS (que no reporta progreso).
 - **Resumen ejecutivo**: tasa de éxito, tareas correctas/fallidas, estado por datastore.
 - **Informe de evidencia (ISO 27001 / ENS)**: informe completo para un rango de fechas
   y máquinas concretas, con metadatos de auditoría, alcance, política por máquina
-  (RPO/retención/modo), estado de cifrado y copia externa, calendario y declaración —
-  vista previa en **HTML** y descarga en **PDF**.
+  (RPO/retención/modo), estado de cifrado y copia externa, **calendario de copias con el
+  nº de copias por día**, **tamaño total de copias (lógico) y factor de deduplicación**, y
+  declaración — vista previa en **HTML** y descarga en **PDF**.
 - **Informe periódico por email**: programable (diario/semanal/mensual), con el informe
   en HTML y el **PDF adjunto**; permite indicar la **sede**.
 - Descargas **CSV** de snapshots e historial de tareas.
