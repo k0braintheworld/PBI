@@ -2,6 +2,7 @@ import * as restoreStore from './restoreStore.js';
 import * as notifyStore from './notifyStore.js';
 import { getPveRaw } from './pveStore.js';
 import { pveTaskStatus } from './pveService.js';
+import { getRaw as getReportCfg } from './reportStore.js';
 import { sendMail, buildRestoreEmail } from './mailer.js';
 
 /**
@@ -53,7 +54,8 @@ async function poll() {
 
       if (!canMail) { restoreStore.removeWatch(w.id); continue; }
       try {
-        await sendMail(smtp, buildRestoreEmail(w, result));
+        const sede = getReportCfg()?.sede || '';
+        await sendMail(smtp, buildRestoreEmail(w, result, { sede }));
         restoreStore.removeWatch(w.id);
       } catch (e) {
         const tries = (w.tries || 0) + 1;
