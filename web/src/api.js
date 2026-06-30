@@ -107,6 +107,10 @@ export const api = {
   pveUpdateBackupJob: (id, jobid, body) => req('PUT', `/pve/${id}/backup-jobs/${encodeURIComponent(jobid)}`, body),
   pveDeleteBackupJob: (id, jobid) => req('DELETE', `/pve/${id}/backup-jobs/${encodeURIComponent(jobid)}`),
   pveRestore: (id, body) => req('POST', `/pve/${id}/restore`, body),
+  pveTasks: (id, params = {}) => {
+    const q = new URLSearchParams(params).toString();
+    return req('GET', `/pve/${id}/tasks${q ? `?${q}` : ''}`);
+  },
   pveTaskStatus: (id, upid) => req('GET', `/pve/${id}/tasks/${encodeURIComponent(upid)}/status`),
   pveTaskLog: (id, upid) => req('GET', `/pve/${id}/tasks/${encodeURIComponent(upid)}/log`),
   pveFileList: (id, params) => req('GET', `/pve/${id}/file-restore/list?${new URLSearchParams(params)}`),
