@@ -70,6 +70,9 @@ export function update(input) {
     next.smtp = { ...cur.smtp, ...input.smtp };
     if (!input.smtp.pass) next.smtp.pass = cur.smtp.pass; // conservar si vacío
   }
+  // Auto-activar cuando se configura SMTP con host + destinatario, salvo que
+  // el usuario haya marcado explícitamente enabled=false en esta llamada.
+  if (next.smtp.host && next.smtp.to && input.enabled !== false) next.enabled = true;
   next.state = cur.state; // el estado lo gestiona el vigilante
   write(next);
   return masked();
