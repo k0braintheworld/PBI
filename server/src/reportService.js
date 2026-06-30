@@ -66,6 +66,9 @@ export async function computeReport(auth, { from, to }, { sede = '', hostName = 
   const failures = failPool.sort((a, b) => (b.endtime || 0) - (a.endtime || 0)).slice(0, 25);
   const totalUsed = perDatastore.reduce((a, x) => a + (x.used || 0), 0);
   const totalCap = perDatastore.reduce((a, x) => a + (x.total || 0), 0);
+  // Tamaño lógico total de las copias (suma de snapshots) y factor de deduplicación
+  const backupsLogical = allSnaps.reduce((a, s) => a + (s.size || 0), 0);
+  const dedup = totalUsed > 0 ? backupsLogical / totalUsed : 0;
 
   // Calendario diario: estado de las copias por día del periodo
   const ymd = (dd) => `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;
@@ -98,7 +101,7 @@ export async function computeReport(auth, { from, to }, { sede = '', hostName = 
   const encryption = { encrypted, modes: [...cryptModes] };
 
   const subject = `[PBI] ${title}${sede ? ` · ${sede}` : ''} · ${d(from)}–${d(to)}`;
-  return { title, sede, hostName, from, to, perDatastore, totalUsed, totalCap, vms, names, lastSnap, backups: backups.length, okCount, failCount, successRate, failures, calendar, monthLabel, scope, meta, encryption, policies, offsite, subject };
+  return { title, sede, hostName, from, to, perDatastore, totalUsed, totalCap, backupsLogical, dedup, vms, names, lastSnap, backups: backups.length, okCount, failCount, successRate, failures, calendar, monthLabel, scope, meta, encryption, policies, offsite, subject };
 }
 
 export async function buildReport(auth, range, opts) {
@@ -160,13 +163,14 @@ function calendarHtml(r) {
   const wd = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
   const head = wd.map((x) => `<td align="center" style="font-size:10px;color:#8b95a3;font-weight:600;padding-bottom:4px">${x}</td>`).join('');
   const rows = weeks.map((week) => `<tr>${week.map((c) => {
-    if (!c) return '<td>&nbsp;</td>';
-    const col = CAL_COLORS[c.status];
-    const border = c.status === 'none' ? 'border:1px solid #dde3ec;' : '';
+    if (!c) return '<td style="padding:3px"><div style="height:20px">&nbsp;</div></td>';
+    const isNone = c.status === 'none';
+    const col = isNone ? '#eef2f7' : CAL_COLORS[c.status];
+    const count = isNone ? '' : (c.status === 'failed' ? c.failed : c.total);
     const title = c.status === 'ok' ? `${c.total} correcta(s)` : c.status === 'failed' ? `${c.failed} fallo(s)` : c.status === 'partial' ? `${c.total} copias, ${c.failed} con fallo` : 'sin copias';
-    return `<td align="center" width="14.28%" style="padding:4px 2px">
-      <div style="font-size:9px;color:#9aa3b0;line-height:1">${c.day}</div>
-      <div title="${title}" style="width:13px;height:13px;border-radius:50%;background:${col};${border}margin:3px auto 0"></div>
+    return `<td align="center" width="14.28%" style="padding:3px">
+      <div style="font-size:9px;color:#9aa3b0;line-height:1;margin-bottom:3px">${c.day}</div>
+      <div title="${title}" style="width:26px;height:20px;line-height:20px;border-radius:5px;background:${col};color:#fff;font-size:11px;font-weight:600;margin:0 auto;${isNone ? 'border:1px solid #dde3ec;' : ''}">${count}</div>
     </td>`;
   }).join('')}</tr>`).join('');
 
@@ -327,6 +331,11 @@ export function renderHtml(r) {
       ${r.calendar && r.calendar.length > 1 ? calendarHtml(r) : ''}
 
       <tr><td style="padding:14px 22px 4px"><div style="font-size:15px;font-weight:600;color:#1b2430">Estado de almacenamiento</div></td></tr>
+      <tr><td style="padding:2px 22px 8px">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f9fc;border:1px solid #eef1f5;border-radius:8px"><tr>
+          <td align="center" style="padding:8px 14px;font-size:12px;color:#6b7685">Tamaño total de copias (lógico): <b style="color:#1b2430;font-family:Consolas,monospace">${fmtBytes(r.backupsLogical)}</b>${r.dedup >= 1 ? ` &nbsp;·&nbsp; Deduplicación: <b style="color:#157a42;font-family:Consolas,monospace">${r.dedup.toFixed(1)}×</b>` : ''}</td>
+        </tr></table>
+      </td></tr>
       <tr><td style="padding:0 22px 8px"><table role="presentation" width="100%" cellpadding="0" cellspacing="0">${storageRows}</table></td></tr>
 
       <tr><td style="padding:14px 22px 4px"><div style="font-size:15px;font-weight:600;color:#1b2430">Copias por máquina</div></td></tr>

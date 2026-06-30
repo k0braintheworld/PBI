@@ -70,8 +70,9 @@ than the PBS-side task (which reports no progress).
 - **Executive summary**: success rate, successful/failed tasks, status per datastore.
 - **Evidence report (ISO 27001 / ENS)**: a complete report for a specific date range and
   machines, with audit metadata, scope, per-machine policy (RPO/retention/mode),
-  encryption and offsite status, calendar and statement — **HTML** preview and **PDF**
-  download.
+  encryption and offsite status, a **backup calendar with the number of backups per day**,
+  the **total logical backup size and deduplication factor**, and a statement — **HTML**
+  preview and **PDF** download.
 - **Scheduled email report**: configurable (daily/weekly/monthly), with the HTML report
   and the **attached PDF**; lets you set the **site**.
 - **CSV** exports of snapshots and task history.
