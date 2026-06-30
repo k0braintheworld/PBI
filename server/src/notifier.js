@@ -17,16 +17,17 @@ import { sendMail, buildTaskEmail } from './mailer.js';
 const POLL_MS = 60_000;
 const isOk = (s) => s === 'OK' || /^WARNINGS/i.test(s || '');
 
-async function getBackupMode(auth, upid) {
+async function getBackupDetails(auth, upid) {
   try {
     const result = await getTaskLog(auth, upid, { start: 0, limit: 40 });
     const lines = result?.data || [];
     const text = lines.map((l) => l.t || '').join('\n').toLowerCase();
-    if (/client.incremental|previous.backup|incremental/.test(text)) return 'incremental';
-    if (/no.previous.backup|backup.type:\s*full|full.backup/.test(text)) return 'full';
-    return null;
+    const backupMode = /client.incremental|previous.backup|incremental/.test(text) ? 'incremental'
+      : /no.previous.backup|backup.type:\s*full|full.backup/.test(text) ? 'full' : null;
+    const encrypted = /fingerprint|encryption.key|encrypted.snapshot/.test(text) ? true : null;
+    return { backupMode, encrypted };
   } catch {
-    return null;
+    return { backupMode: null, encrypted: null };
   }
 }
 
@@ -83,8 +84,8 @@ async function poll() {
       if ((ok && !cfg.notifyOk) || (!ok && !cfg.notifyFail)) continue;
       if (notified.has(t.upid)) continue;
       try {
-        const backupMode = t.type === 'backup' ? await getBackupMode(auth, t.upid) : null;
-        const mail = buildTaskEmail(t, { hostName: host.name, names, sede, backupMode });
+        const { backupMode, encrypted } = t.type === 'backup' ? await getBackupDetails(auth, t.upid) : {};
+        const mail = buildTaskEmail(t, { hostName: host.name, names, sede, backupMode, encrypted });
         await sendMail(cfg.smtp, mail);
         notified.add(t.upid);
       } catch (e) {
