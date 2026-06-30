@@ -15,7 +15,7 @@ import Audit from './components/Audit.jsx';
 import About from './components/About.jsx';
 import UpdateModal from './components/UpdateModal.jsx';
 import Login from './components/Login.jsx';
-import { APP_VERSION, APP_COPYRIGHT, APP_TAGLINE } from './version.js';
+import { APP_VERSION, APP_COPYRIGHT, APP_TAGLINE, cmpVersion } from './version.js';
 import { useT, LangSwitch } from './i18n.jsx';
 
 const NAV_ALL = [
@@ -86,6 +86,7 @@ function AppShell({ user, onLogout }) {
   const [showUpdate, setShowUpdate] = useState(false);
   const [activeId, setActiveId] = useState(getActiveHost());
   const [view, setView] = useState('dashboard');
+  const [latestVer, setLatestVer] = useState(null);
 
   const loadHosts = useCallback(async () => {
     try {
@@ -103,6 +104,35 @@ function AppShell({ user, onLogout }) {
   }, []);
 
   useEffect(() => { loadHosts(); }, [loadHosts]);
+
+  // Comprobación automática de actualizaciones: consulta GitHub Releases en segundo
+  // plano (cacheada 3 h en localStorage para no abusar de la API) y vuelve a mirar
+  // cada 6 h mientras el panel siga abierto. Si falla (sin red / rate limit) se ignora.
+  useEffect(() => {
+    let stop = false;
+    async function check() {
+      try {
+        const now = Date.now();
+        const last = Number(localStorage.getItem('pbi_upd_ts') || 0);
+        const cached = localStorage.getItem('pbi_upd_latest') || '';
+        if (cached && now - last < 3 * 3600 * 1000) { if (!stop) setLatestVer(cached); return; }
+        const r = await fetch('https://api.github.com/repos/k0braintheworld/PBI/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+        if (!r.ok) return;
+        const rel = await r.json();
+        const ver = (rel.tag_name || '').replace(/^v/i, '');
+        if (ver) {
+          localStorage.setItem('pbi_upd_ts', String(now));
+          localStorage.setItem('pbi_upd_latest', ver);
+          if (!stop) setLatestVer(ver);
+        }
+      } catch { /* sin conexión o límite de la API: ignorar */ }
+    }
+    check();
+    const id = setInterval(check, 6 * 3600 * 1000);
+    return () => { stop = true; clearInterval(id); };
+  }, []);
+
+  const updateAvailable = latestVer ? cmpVersion(latestVer, APP_VERSION) > 0 : false;
 
   function changeHost(id) {
     setActiveHost(id);
@@ -160,7 +190,10 @@ function AppShell({ user, onLogout }) {
           <span style={{ color: '#cfd8e4', fontWeight: 500 }}>{user.username}</span>
           <span style={{ color: 'var(--sb-text)' }}> · {user.role === 'admin' ? t('admin') : user.role === 'viewer' ? t('visor') : t('operador')}</span>
         </div>
-        <button className="nav-item" onClick={() => setShowUpdate(true)}><Icon.refresh /> {t('Actualizaciones')}</button>
+        <button className="nav-item" onClick={() => setShowUpdate(true)}>
+          <Icon.refresh /> {t('Actualizaciones')}
+          {updateAvailable && <span className="upd-dot" title={`${t('Actualización disponible')}: v${latestVer}`} />}
+        </button>
         <button className="nav-item" onClick={onLogout}><Icon.x /> {t('Cerrar sesión')}</button>
         <div style={{ padding: '8px 8px 0', display: 'flex', justifyContent: 'center' }}><LangSwitch /></div>
         <button onClick={() => setView('about')} style={{ background: 'none', border: 'none', color: 'var(--sb-text)', opacity: .65, fontSize: 10.5, textAlign: 'center', cursor: 'pointer', padding: '8px 4px 2px', width: '100%' }}>
