@@ -435,6 +435,11 @@ export const EN = {
   'Guarda la clave en un lugar seguro.': 'Store the key in a safe place.',
   'Si la pierdes, los backups cifrados son irrecuperables. Se recomienda guardar la «paperkey» impresa o en un gestor de contraseñas.':
     'If you lose it, encrypted backups are unrecoverable. It is recommended to save the printed «paperkey» or store it in a password manager.',
+  'Restauración con copias cifradas': 'Restoring encrypted backups',
+  'Las restauraciones (VM completa y ficheros) van a través de PVE, que descifra automáticamente usando la clave del storage. No es necesario introducir la clave manualmente.':
+    'Restores (full VM and files) go through PVE, which decrypts automatically using the storage key. No need to enter the key manually.',
+  'Si restauras en un PVE diferente al que hizo la copia, ese PVE necesita la misma clave:':
+    'If you restore on a different PVE than the one that made the backup, that PVE needs the same key:',
   'Entendido': 'Got it',
   'Selecciona al menos una máquina o marca «Todas»': 'Select at least one machine or check “All”',
   'Selecciona el almacenamiento destino': 'Select the target storage',
