@@ -34,7 +34,9 @@ almacenamiento; últimas copias; actividad reciente; y tendencia de transferenci
 
 ### Copias de seguridad
 Explorador de **snapshots** por datastore con filtro por id/propietario/comentario,
-estado de verificación y tamaño. Exportación a **CSV**.
+estado de verificación y tamaño. Columna **Cifrado** con badge 🔒 por snapshot
+(leído del campo `crypt-mode` que devuelve PBS) y contador de copias cifradas en el
+resumen. Exportación a **CSV**.
 
 ### Recuperación
 Restauración guiada a través de Proxmox VE, sin tocar la consola:
@@ -46,7 +48,9 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
 
 ### Tareas programadas
 - **Copias de seguridad (Proxmox VE)**: crea/edita/elimina trabajos *vzdump* con
-  plantillas (diaria, GFS, etc.), selección de máquinas, retención y destino PBS.
+  plantillas (diaria, GFS, etc.), selección de máquinas, retención, destino PBS y opción de
+  **cifrado** (`encrypt`). El botón **Ayuda** integrado explica cómo configurar la clave de
+  cifrado en PVE (GUI y CLI) y cómo restaurar copias cifradas en otro clúster.
 - **Restauraciones programadas**: **tests de restauración** recurrentes
   (restaura el último backup de una VM a una VMID de pruebas para validar que tus
   copias son recuperables) o restauraciones **puntuales** a una fecha/hora futura.
@@ -79,8 +83,13 @@ para reclamar el espacio físico en disco.
 ### Notificaciones por email
 Vigilante en segundo plano que envía un email **limpio y estructurado** cuando termina
 una tarea (tipos y éxito/fallo configurables) y cuando termina una **restauración**
-(manual o programada). Opción para **silenciar las notificaciones nativas de Proxmox**
-(PVE y PBS) y evitar emails duplicados. Configuración SMTP con **email de prueba**.
+(manual o programada). El email incluye:
+- **Sede / nombre de organización** en asunto, cabecera y pie (leído de la configuración de informes).
+- **Tipo de copia**: categoría PBS (VM / CT / Host) y modo Full/Incremental si se puede determinar del log de la tarea.
+- **Estado de cifrado**: fila «Cifrado: Sí 🔒 / No» cuando el log indica que el backup se cifró.
+
+Opción para **silenciar las notificaciones nativas de Proxmox** (PVE y PBS) y evitar
+emails duplicados. Configuración SMTP con **email de prueba**.
 
 ### Auto-actualización desde el panel
 Botón **Actualizaciones** en el sidebar que consulta las GitHub Releases y muestra si hay
