@@ -109,22 +109,19 @@ Si hay actualización disponible:
 - **Guía de actualización manual (SSH)**: si prefieres hacerlo a mano, el propio panel
   muestra los comandos `wget` / `sha256sum` / `dpkg -i` listos para copiar.
 
-### Seguridad y multiusuario
-- **Acceso protegido**: login con usuario/contraseña y **2FA (TOTP)** opcional; en el
-  primer arranque se crea la cuenta de administrador.
-- **Tres roles de usuario**:
+### Multiusuario y auditoría
+- **Tres roles de usuario** (aplicados en la interfaz y en el backend):
   - **Administrador**: acceso y gestión completos (usuarios, configuración, auditoría).
   - **Operador**: uso completo del panel (copias, jobs, recuperación, limpieza…).
   - **Visor**: acceso de **solo lectura** al dashboard, copias, monitor de tareas e
-    informes. Sin acceso a jobs, configuración, recuperación ni limpieza — tanto en la
-    interfaz como en el backend.
+    informes. Sin acceso a jobs, configuración, recuperación ni limpieza.
 - **Auditoría de acciones**: log persistente en `/var/lib/pbi/audit.jsonl` con cada
   login/logout, creación/modificación de usuarios, lanzamiento de jobs y operaciones de
   limpieza. Vista filtrable por usuario, acción y fecha, con **rotación configurable**
   (tamaño máximo y nº de ficheros).
-- **Secretos cifrados en reposo** (AES-256-GCM): los token secrets de PBS/PVE y la
-  contraseña SMTP se guardan cifrados; nunca se devuelven por la API.
-- **HTTPS** con certificado autofirmado generado en la instalación `.deb`.
+
+> El detalle de autenticación, cifrado y endurecimiento está en la sección
+> [🔐 Seguridad](#-seguridad).
 
 ### Multi-host e idioma
 Gestiona **varios servidores PBS** y cambia entre ellos con el selector de la barra
