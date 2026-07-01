@@ -7,6 +7,44 @@ const PAGE_SIZE = 100;
 
 const RESULT_COLORS = { ok: 'var(--green)', fail: 'var(--red)', error: 'var(--red)' };
 
+// Etiquetas legibles de las acciones (se traducen con t()). Si un código no está
+// en el mapa, se muestra tal cual.
+const ACTION_LABELS = {
+  'auth.login': 'Inicio de sesión',
+  'auth.logout': 'Cierre de sesión',
+  'auth.setup': 'Alta de administrador',
+  'user.create': 'Crear usuario',
+  'user.update': 'Editar usuario',
+  'user.delete': 'Borrar usuario',
+  'account.password': 'Cambio de contraseña',
+  'account.2fa_enable': 'Activar 2FA',
+  'account.2fa_disable': 'Desactivar 2FA',
+  'host.create': 'Crear host PBS',
+  'host.update': 'Editar host PBS',
+  'host.delete': 'Borrar host PBS',
+  'pve.create': 'Crear conexión PVE',
+  'pve.update': 'Editar conexión PVE',
+  'pve.delete': 'Borrar conexión PVE',
+  'backupjob.create': 'Crear trabajo de copia',
+  'backupjob.update': 'Editar trabajo de copia',
+  'backupjob.delete': 'Borrar trabajo de copia',
+  'backupjob.run': 'Lanzar trabajo de copia',
+  restore: 'Restauración',
+  'job.create': 'Crear job PBS',
+  'job.update': 'Editar job PBS',
+  'job.delete': 'Borrar job PBS',
+  'job.run': 'Lanzar job PBS',
+  'cleanup.delete_group': 'Borrar grupo de copias',
+  'cleanup.delete_snapshot': 'Borrar snapshot',
+  'cleanup.gc': 'Garbage Collection',
+  'notify.update': 'Config. notificaciones',
+  'notify.silence_proxmox': 'Silenciar avisos de Proxmox',
+  'report.update': 'Config. informes',
+  'report.send': 'Enviar informe',
+  'security.update': 'Config. de seguridad',
+};
+const actionLabel = (code) => ACTION_LABELS[code] || code;
+
 function fmtTs(ts) {
   if (!ts) return '—';
   return new Date(ts).toLocaleString();
@@ -146,7 +184,7 @@ export default function Audit() {
           <label>{t('Acción')}</label>
           <select className="input" value={filterAction} onChange={(e) => setFilterAction(e.target.value)}>
             <option value="">{t('Todas')}</option>
-            {actions.map((a) => <option key={a} value={a}>{a}</option>)}
+            {actions.map((a) => <option key={a} value={a}>{t(actionLabel(a))}</option>)}
           </select>
         </div>
         <div className="field" style={{ margin: 0 }}>
@@ -190,7 +228,7 @@ export default function Audit() {
                       <td className="mono" style={{ whiteSpace: 'nowrap' }}>{fmtTs(e.ts)}</td>
                       <td style={{ fontWeight: 600 }}>{e.user}</td>
                       <td><RoleBadge role={e.role} /></td>
-                      <td className="mono">{e.action}</td>
+                      <td title={e.action}>{t(actionLabel(e.action))}</td>
                       <td className="mono" style={{ maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={e.resource}>{e.resource || '—'}</td>
                       <td className="mono" style={{ opacity: .7 }}>{e.ip || '—'}</td>
                       <td><ResultBadge result={e.result} /></td>

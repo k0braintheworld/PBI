@@ -40,6 +40,14 @@ if (['', 'dev-secret-change-me', 'CHANGE_ME'].includes(config.sessionSecret || '
 const app = express();
 app.disable('x-powered-by');
 
+// Detrás de un proxy inverso (TLS termination), TRUST_PROXY hace que `req.ip` y las
+// cabeceras X-Forwarded-* sean del cliente real. Sin él, NO se confía en
+// X-Forwarded-For (no es falsificable): `req.ip` = IP del socket.
+if (process.env.TRUST_PROXY) {
+  const n = Number(process.env.TRUST_PROXY);
+  app.set('trust proxy', Number.isFinite(n) && n > 0 ? n : process.env.TRUST_PROXY);
+}
+
 app.use(express.json());
 app.use(cookieParser(config.sessionSecret));
 app.use(
@@ -106,11 +114,13 @@ if (config.webDir) {
   });
 }
 
-// Manejador de errores centralizado
-app.use((err, _req, res, _next) => {
+// Manejador de errores centralizado. El detalle crudo del upstream (PBS/PVE) solo
+// se expone a administradores; al resto se le da únicamente el mensaje.
+app.use((err, req, res, _next) => {
   const status = err.status || 500;
   if (status >= 500) console.error('[error]', err);
-  res.status(status).json({ error: err.message || 'Error interno', details: err.pbs || undefined });
+  const details = req.user?.role === 'admin' ? (err.pbs || undefined) : undefined;
+  res.status(status).json({ error: err.message || 'Error interno', details });
 });
 
 const server = config.tls.enabled

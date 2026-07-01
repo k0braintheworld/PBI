@@ -589,8 +589,8 @@ function UserModal({ user, onClose, onSaved, onError, isSelf }) {
             </select>
             {isSelf && <span className="muted" style={{ fontSize: 11.5 }}>{tr('No puedes cambiar tu propio rol.')}</span>}
           </div>
-          <div className="field"><label>{isNew ? tr('Contraseña (mín. 6)') : tr('Nueva contraseña')} {!isNew && <span className="muted">{tr('(vacío = conservar)')}</span>}</label>
-            <input className="input" type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required={isNew} minLength={6} />
+          <div className="field"><label>{isNew ? tr('Contraseña (mín. 10)') : tr('Nueva contraseña')} {!isNew && <span className="muted">{tr('(vacío = conservar)')}</span>}</label>
+            <input className="input" type="password" value={form.password} onChange={set('password')} autoComplete="new-password" required={isNew} minLength={10} />
           </div>
           {!isNew && user.totpEnabled && (
             <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', margin: '2px 0 14px' }}>
@@ -650,7 +650,7 @@ function AccountSettings() {
         <form onSubmit={changePw}>
           <div className="field"><label>{tr('Contraseña actual')}</label><input className="input" type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} autoComplete="current-password" required /></div>
           <div className="row">
-            <div className="field"><label>{tr('Nueva (mín. 6)')}</label><input className="input" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" minLength={6} required /></div>
+            <div className="field"><label>{tr('Nueva (mín. 10)')}</label><input className="input" type="password" value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} autoComplete="new-password" minLength={10} required /></div>
             <div className="field"><label>{tr('Repetir nueva')}</label><input className="input" type="password" value={pw.next2} onChange={(e) => setPw({ ...pw, next2: e.target.value })} autoComplete="new-password" required /></div>
           </div>
           <button className="btn primary" disabled={pwBusy}>{pwBusy ? tr('Guardando…') : tr('Cambiar contraseña')}</button>

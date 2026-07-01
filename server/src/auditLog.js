@@ -46,7 +46,7 @@ export function audit(req, action, resource = '', result = 'ok', detail = '', us
       role: u.role || 'system',
       action,
       resource: String(resource),
-      ip: (req.headers['x-forwarded-for'] || '').split(',')[0].trim() || req.socket?.remoteAddress || '',
+      ip: req.ip || req.socket?.remoteAddress || '',
       result,
       detail: String(detail || '').slice(0, 500),
     });

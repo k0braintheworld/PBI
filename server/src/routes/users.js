@@ -11,7 +11,7 @@ usersRouter.get('/', (req, res) => res.json(users.listUsers()));
 
 usersRouter.post('/', wrap(async (req, res) => {
   const { username, password, role } = req.body || {};
-  if ((password || '').length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  if ((password || '').length < 10) return res.status(400).json({ error: 'La contraseña debe tener al menos 10 caracteres' });
   const u = users.addUser({ username, password, role });
   audit(req, 'user.create', `${u.username} (${u.role})`, 'ok');
   res.json(u);
@@ -19,7 +19,7 @@ usersRouter.post('/', wrap(async (req, res) => {
 
 usersRouter.put('/:id', wrap(async (req, res) => {
   const { role, password, username, resetTotp } = req.body || {};
-  if (password && password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  if (password && password.length < 10) return res.status(400).json({ error: 'La contraseña debe tener al menos 10 caracteres' });
   const u = users.updateUser(req.params.id, { role, password, username, resetTotp });
   destroyUserSessions(req.params.id);
   const detail = [role && `rol→${role}`, password && 'contraseña', resetTotp && '2FA reset'].filter(Boolean).join(', ');

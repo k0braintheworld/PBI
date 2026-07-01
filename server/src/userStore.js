@@ -80,7 +80,7 @@ export function updateUser(id, { role, password, username, resetTotp }) {
     u.role = normRole(role);
   }
   if (password) {
-    if (password.length < 6) throw httpErr(400, 'La contraseña debe tener al menos 6 caracteres');
+    if (password.length < 10) throw httpErr(400, 'La contraseña debe tener al menos 10 caracteres');
     const { salt, hash } = hashPassword(password);
     u.salt = salt; u.hash = hash;
   }
@@ -108,7 +108,7 @@ export function changePassword(id, currentPassword, newPassword) {
   const u = users.find((x) => x.id === id);
   if (!u) throw httpErr(404, 'Usuario no encontrado');
   if (!verifyPassword(currentPassword || '', u.salt, u.hash)) throw httpErr(400, 'La contraseña actual no es correcta');
-  if (!newPassword || newPassword.length < 6) throw httpErr(400, 'La nueva contraseña debe tener al menos 6 caracteres');
+  if (!newPassword || newPassword.length < 10) throw httpErr(400, 'La nueva contraseña debe tener al menos 10 caracteres');
   const { salt, hash } = hashPassword(newPassword);
   u.salt = salt; u.hash = hash;
   writeAll(users);

@@ -28,7 +28,7 @@ panelAuthRouter.post('/setup', wrap(async (req, res) => {
   if (users.count() > 0) return res.status(409).json({ error: 'El sistema ya está inicializado' });
   const { username, password } = req.body || {};
   if (!username || !password) return res.status(400).json({ error: 'Usuario y contraseña obligatorios' });
-  if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+  if (password.length < 10) return res.status(400).json({ error: 'La contraseña debe tener al menos 10 caracteres' });
   const u = users.addUser({ username, password, role: 'admin' });
   const raw = users.getById(u.id);
   res.cookie(COOKIE, createSession(raw), cookieOpts);
