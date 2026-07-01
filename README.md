@@ -240,6 +240,14 @@ almacenamientos, desmarca «Separación de privilegios» al crearlo o asígnale 
   secretos ya guardados habrá que reintroducirlos.)*
 - La API **nunca** devuelve secretos (se enmascaran).
 - **Sesiones** firmadas en cookie `httpOnly`; **2FA TOTP** opcional por usuario.
+- **Cierre de sesión por inactividad** configurable (por defecto 30 min) en
+  *Configuración → Preferencias → Seguridad*.
+- **Protección anti-fuerza-bruta**: bloqueo temporal del login (y del 2FA) tras varios
+  intentos fallidos, por usuario e IP.
+- **Defensa CSRF** (cabecera personalizada obligatoria en peticiones que modifican estado)
+  y **cabeceras de seguridad** (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`). El servidor **se niega a arrancar** con un `SESSION_SECRET` por
+  defecto/sin configurar.
 - **HTTPS** con certificado autofirmado en la instalación `.deb` (sustituible por uno
   propio en `/etc/pbi/pbi.env`).
 - Los ficheros de datos se crean con permisos `600`.

@@ -14,7 +14,7 @@ export function setActiveHost(id) {
 }
 
 async function req(method, path, body) {
-  const opts = { method, headers: {} };
+  const opts = { method, headers: { 'X-Requested-With': 'pbi' } }; // anti-CSRF (defensa en profundidad)
   if (activeHostId) opts.headers['X-PBS-Host'] = activeHostId;
   if (body !== undefined) {
     opts.headers['Content-Type'] = 'application/json';
@@ -43,6 +43,8 @@ export const api = {
   authLogin: (body) => req('POST', '/auth/login', body),
   authSetup: (body) => req('POST', '/auth/setup', body),
   authLogout: () => req('POST', '/auth/logout'),
+  security: () => req('GET', '/security'),
+  setSecurity: (body) => req('PUT', '/security', body),
 
   // Mi cuenta (autoservicio)
   accountGet: () => req('GET', '/account'),

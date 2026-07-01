@@ -51,6 +51,10 @@ export default function Login({ needsSetup, onDone }) {
           {needsSetup ? t('Es el primer acceso: crea la cuenta de administrador del panel.') : t('Introduce tus credenciales para acceder.')}
         </p>
 
+        {!needsSetup && typeof sessionStorage !== 'undefined' && sessionStorage.getItem('pbi_idle_logout') && (() => { try { sessionStorage.removeItem('pbi_idle_logout'); } catch { /* ignore */ } return true; })() && (
+          <div className="banner" style={{ marginBottom: 12 }}>{t('Sesión cerrada por inactividad.')}</div>
+        )}
+
         {error && <div className="error-box">{error}</div>}
 
         <form onSubmit={submit}>
