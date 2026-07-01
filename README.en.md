@@ -240,6 +240,13 @@ the storages, uncheck "Privilege Separation" when creating it or assign it a rol
   secrets must be re-entered.)*
 - The API **never** returns secrets (they are masked).
 - Sessions are signed in an `httpOnly` cookie; optional **TOTP 2FA** per user.
+- **Auto-logout after inactivity**, configurable (30 min by default) under
+  *Settings → Preferences → Security*.
+- **Brute-force protection**: temporary login (and 2FA) lockout after several failed
+  attempts, per user and per IP.
+- **CSRF defense** (a custom header is required on state-changing requests) and
+  **security headers** (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
+  The server **refuses to start** with a default/unset `SESSION_SECRET`.
 - **HTTPS** with a self-signed certificate on `.deb` install (replaceable with your own
   in `/etc/pbi/pbi.env`).
 - Data files are created with `600` permissions.

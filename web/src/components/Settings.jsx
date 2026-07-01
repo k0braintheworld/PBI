@@ -22,7 +22,7 @@ export default function Settings({ onHostsChanged, user }) {
       {section === 'pbs' && <PbsHosts onHostsChanged={onHostsChanged} />}
       {section === 'pve' && <PveHosts />}
       {section === 'notify' && <NotifySettings />}
-      {section === 'prefs' && <Preferences />}
+      {section === 'prefs' && <Preferences isAdmin={isAdmin} />}
       {section === 'users' && isAdmin && <UserManagement currentUser={user} />}
       {section === 'account' && <AccountSettings />}
     </div>
@@ -30,7 +30,7 @@ export default function Settings({ onHostsChanged, user }) {
 }
 
 /* ===================== Preferencias de interfaz ===================== */
-function Preferences() {
+function Preferences({ isAdmin }) {
   const tr = useT();
   const [weekStart, setWeekStart] = useState(
     (typeof localStorage !== 'undefined' && localStorage.getItem('pbi_week_start')) || 'mon',
@@ -39,18 +39,52 @@ function Preferences() {
     setWeekStart(v);
     try { localStorage.setItem('pbi_week_start', v); } catch { /* ignore */ }
   }
+
+  const [idle, setIdle] = useState(null); // minutos (null = cargando)
+  const [savedMsg, setSavedMsg] = useState('');
+  useEffect(() => {
+    api.security().then((s) => setIdle(Number(s?.sessionIdleMinutes) || 0)).catch(() => setIdle(0));
+  }, []);
+  async function saveIdle() {
+    const v = Math.max(0, Math.min(1440, Number(idle) || 0));
+    setIdle(v);
+    try {
+      await api.setSecurity({ sessionIdleMinutes: v });
+      setSavedMsg(tr('Guardado')); setTimeout(() => setSavedMsg(''), 1800);
+    } catch { /* ignore */ }
+  }
+
   return (
-    <div className="card card-pad" style={{ maxWidth: 520 }}>
-      <h3 style={{ marginTop: 0 }}>{tr('Preferencias de interfaz')}</h3>
-      <label style={{ fontSize: 13, color: 'var(--text-2)' }}>{tr('Inicio de semana')}</label>
-      <div style={{ marginTop: 6 }}>
-        <select className="input" value={weekStart} onChange={(e) => change(e.target.value)} style={{ maxWidth: 220 }}>
-          <option value="mon">{tr('Lunes')}</option>
-          <option value="sun">{tr('Domingo')}</option>
-        </select>
+    <>
+      <div className="card card-pad" style={{ maxWidth: 520 }}>
+        <h3 style={{ marginTop: 0 }}>{tr('Preferencias de interfaz')}</h3>
+        <label style={{ fontSize: 13, color: 'var(--text-2)' }}>{tr('Inicio de semana')}</label>
+        <div style={{ marginTop: 6 }}>
+          <select className="input" value={weekStart} onChange={(e) => change(e.target.value)} style={{ maxWidth: 220 }}>
+            <option value="mon">{tr('Lunes')}</option>
+            <option value="sun">{tr('Domingo')}</option>
+          </select>
+        </div>
+        <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{tr('Afecta al calendario de copias del panel. Se guarda en este navegador.')}</p>
       </div>
-      <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{tr('Afecta al calendario de copias del panel. Se guarda en este navegador.')}</p>
-    </div>
+
+      {isAdmin && (
+        <div className="card card-pad" style={{ maxWidth: 520, marginTop: 16 }}>
+          <h3 style={{ marginTop: 0 }}>{tr('Seguridad')}</h3>
+          <label style={{ fontSize: 13, color: 'var(--text-2)' }}>{tr('Cierre de sesión por inactividad (minutos)')}</label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6, alignItems: 'center' }}>
+            <input
+              className="input" type="number" min="0" max="1440" style={{ maxWidth: 120 }}
+              value={idle == null ? '' : idle}
+              onChange={(e) => setIdle(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+            />
+            <button className="btn primary" onClick={saveIdle} disabled={idle == null}>{tr('Guardar')}</button>
+            {savedMsg && <span className="muted" style={{ fontSize: 12 }}>{savedMsg}</span>}
+          </div>
+          <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{tr('0 = desactivado. Se aplica a todos los usuarios. La sesión se cierra tras ese tiempo sin actividad.')}</p>
+        </div>
+      )}
+    </>
   );
 }
 

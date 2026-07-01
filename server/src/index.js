@@ -9,6 +9,7 @@ import { config } from './config.js';
 import { panelAuthRouter } from './routes/panelAuth.js';
 import { usersRouter } from './routes/users.js';
 import { accountRouter } from './routes/account.js';
+import { securityRouter } from './routes/security.js';
 import { requireAuth, requireAdmin, requireOperator } from './session.js';
 import { hostsRouter } from './routes/hosts.js';
 import { pveRouter } from './routes/pve.js';
@@ -26,7 +27,18 @@ import { startReportScheduler } from './reportScheduler.js';
 import { startRestoreWatcher } from './restoreWatcher.js';
 import { startRestoreScheduler } from './restoreScheduler.js';
 
+// Seguridad: no arrancar con el SESSION_SECRET por defecto (firma de cookies y
+// clave de cifrado de secretos dependen de él). Se puede saltar en desarrollo
+// con PBI_ALLOW_INSECURE_SECRET=1.
+if (['', 'dev-secret-change-me', 'CHANGE_ME'].includes(config.sessionSecret || '') && process.env.PBI_ALLOW_INSECURE_SECRET !== '1') {
+  console.error('[FATAL] SESSION_SECRET no está configurado (o es el valor por defecto).');
+  console.error('        Define SESSION_SECRET (en /etc/pbi/pbi.env o el entorno) con un valor aleatorio.');
+  console.error('        Solo para desarrollo puedes arrancar con PBI_ALLOW_INSECURE_SECRET=1.');
+  process.exit(1);
+}
+
 const app = express();
+app.disable('x-powered-by');
 
 app.use(express.json());
 app.use(cookieParser(config.sessionSecret));
@@ -36,6 +48,26 @@ app.use(
     credentials: true,
   }),
 );
+
+// Cabeceras de seguridad basicas (sin dependencias). No se fuerza una CSP
+// estricta para no romper los estilos en linea ni el aviso de actualizaciones
+// (fetch a la API de GitHub); queda pendiente como mejora aparte.
+app.use((_req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('X-XSS-Protection', '0');
+  next();
+});
+
+// CSRF (defensa en profundidad): las peticiones que modifican estado deben
+// llevar una cabecera personalizada que un formulario cross-site no puede
+// fijar sin preflight (que CORS bloquearía). Las GET/HEAD/OPTIONS quedan libres.
+app.use('/api', (req, res, next) => {
+  if (req.method === 'GET' || req.method === 'HEAD' || req.method === 'OPTIONS') return next();
+  if (req.get('X-Requested-With') === 'pbi') return next();
+  return res.status(403).json({ error: 'Petición rechazada (falta cabecera anti-CSRF)' });
+});
 
 // Sello de tiempo para informes
 app.use((req, _res, next) => {
@@ -54,6 +86,7 @@ app.use('/api/auth', panelAuthRouter);
 app.use('/api', requireAuth);
 
 app.use('/api/account', accountRouter);
+app.use('/api/security', securityRouter);
 app.use('/api/users', requireAdmin, usersRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/hosts', hostsRouter);

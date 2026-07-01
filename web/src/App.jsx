@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, getActiveHost, setActiveHost } from './api.js';
 import { Icon } from './components/icons.jsx';
 import { ConfirmHost } from './components/common.jsx';
@@ -104,6 +104,30 @@ function AppShell({ user, onLogout }) {
   }, []);
 
   useEffect(() => { loadHosts(); }, [loadHosts]);
+
+  // --- Cierre de sesión por inactividad (configurable en Configuración › Seguridad) ---
+  const [idleMin, setIdleMin] = useState(0);
+  const logoutRef = useRef(onLogout);
+  useEffect(() => { logoutRef.current = onLogout; });
+  useEffect(() => {
+    api.security().then((s) => setIdleMin(Number(s?.sessionIdleMinutes) || 0)).catch(() => {});
+  }, []);
+  useEffect(() => {
+    if (!idleMin) return undefined;
+    const idleMs = idleMin * 60 * 1000;
+    let last = Date.now();
+    const bump = () => { last = Date.now(); };
+    const evts = ['mousemove', 'mousedown', 'keydown', 'scroll', 'touchstart'];
+    evts.forEach((e) => window.addEventListener(e, bump, { passive: true }));
+    const id = setInterval(() => {
+      if (Date.now() - last > idleMs) {
+        clearInterval(id);
+        try { sessionStorage.setItem('pbi_idle_logout', '1'); } catch { /* ignore */ }
+        logoutRef.current?.();
+      }
+    }, 15000);
+    return () => { evts.forEach((e) => window.removeEventListener(e, bump)); clearInterval(id); };
+  }, [idleMin]);
 
   // Comprobación automática de actualizaciones: consulta GitHub Releases en segundo
   // plano (cacheada 3 h en localStorage para no abusar de la API) y vuelve a mirar

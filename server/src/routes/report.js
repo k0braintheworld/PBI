@@ -2,6 +2,7 @@ import { Router } from 'express';
 import * as store from '../reportStore.js';
 import * as notifyStore from '../notifyStore.js';
 import { generateReport, generatePdf, sendReport, listMachines, generateCustomReport, generateCustomPdf } from '../reportRunner.js';
+import { requireOperator } from '../session.js';
 
 export const reportRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -13,7 +14,7 @@ reportRouter.get('/', (req, res) => {
   res.json({ ...cfg, smtpReady: !!(smtp.host && (cfg.to || smtp.to)) });
 });
 
-reportRouter.put('/', wrap(async (req, res) => {
+reportRouter.put('/', requireOperator, wrap(async (req, res) => {
   res.json(store.update(req.body || {}));
 }));
 
@@ -70,7 +71,7 @@ reportRouter.get('/custom.pdf', wrap(async (req, res) => {
 }));
 
 // Enviar ahora
-reportRouter.post('/send', wrap(async (req, res) => {
+reportRouter.post('/send', requireOperator, wrap(async (req, res) => {
   try {
     const { to } = await sendReport(store.getRaw());
     res.json({ ok: true, to });
