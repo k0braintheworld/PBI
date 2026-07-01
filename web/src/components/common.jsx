@@ -62,12 +62,19 @@ export function useAsync(fn, deps = []) {
   const [state, setState] = useState({ loading: true, error: null, data: null });
 
   const run = useCallback(async () => {
-    setState((s) => ({ ...s, loading: true, error: null }));
+    // Solo mostramos el spinner en la carga inicial (sin datos). En los refrescos
+    // (auto-refresco) mantenemos los datos en pantalla y solo los intercambiamos
+    // cuando llegan los nuevos → sin parpadeo del panel.
+    setState((s) => ({ ...s, loading: s.data == null }));
     try {
       const data = await fn();
       setState({ loading: false, error: null, data });
     } catch (err) {
-      setState({ loading: false, error: err.message || 'Error', data: null });
+      // Fallo en un refresco con datos previos: conservarlos (blip transitorio de
+      // red) sin vaciar el panel. En la carga inicial sí se muestra el error.
+      setState((s) => (s.data == null
+        ? { loading: false, error: err.message || 'Error', data: null }
+        : { ...s, loading: false }));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, deps);
