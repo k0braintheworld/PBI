@@ -114,9 +114,10 @@ When an update is found:
   - **Viewer**: **read-only** access to the dashboard, backups, task monitor and reports.
     No access to jobs, settings, recovery or cleanup.
 - **Action audit log**: persistent log at `/var/lib/pbi/audit.jsonl` recording every
-  login/logout, user creation/modification, job run and cleanup operation. Filterable
-  view by user, action and date, with **configurable rotation** (max file size and number
-  of files).
+  login/logout, first-admin setup, user and account management (password/2FA), PBS/PVE
+  connection changes, notification and report settings, backup jobs, restores and cleanup
+  operations. Filterable view by user, action and date, with **configurable rotation**
+  (max file size and number of files).
 
 > Authentication, encryption and hardening details are in the [🔐 Security](#-security)
 > section.

@@ -3,6 +3,7 @@ import * as store from '../hostStore.js';
 import { authForHost, invalidateTicket } from '../authResolver.js';
 import { pbsCall } from '../pbsClient.js';
 import { requireOperator } from '../session.js';
+import { audit } from '../auditLog.js';
 
 export const hostsRouter = Router();
 
@@ -19,7 +20,9 @@ hostsRouter.get('/', (req, res) => {
 // Crear host
 hostsRouter.post('/', requireOperator, wrap(async (req, res) => {
   if (!req.body.host) return res.status(400).json({ error: 'Falta el campo host' });
-  res.json(store.addHost(req.body));
+  const h = store.addHost(req.body);
+  audit(req, 'host.create', `${h.name || ''} (${req.body.host})`, 'ok');
+  res.json(h);
 }));
 
 // Actualizar host
@@ -27,14 +30,17 @@ hostsRouter.put('/:id', requireOperator, wrap(async (req, res) => {
   const updated = store.updateHost(req.params.id, req.body);
   if (!updated) return res.status(404).json({ error: 'Host no encontrado' });
   invalidateTicket(req.params.id); // por si cambió usuario/contraseña
+  audit(req, 'host.update', updated.name || req.params.id, 'ok');
   res.json(updated);
 }));
 
 // Eliminar host
 hostsRouter.delete('/:id', requireOperator, wrap(async (req, res) => {
+  const prev = store.getHostRaw(req.params.id);
   const ok = store.deleteHost(req.params.id);
   if (!ok) return res.status(404).json({ error: 'Host no encontrado' });
   invalidateTicket(req.params.id);
+  audit(req, 'host.delete', prev?.name || req.params.id, 'ok');
   res.json({ ok: true });
 }));
 

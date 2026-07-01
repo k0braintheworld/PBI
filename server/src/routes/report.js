@@ -3,6 +3,7 @@ import * as store from '../reportStore.js';
 import * as notifyStore from '../notifyStore.js';
 import { generateReport, generatePdf, sendReport, listMachines, generateCustomReport, generateCustomPdf } from '../reportRunner.js';
 import { requireOperator } from '../session.js';
+import { audit } from '../auditLog.js';
 
 export const reportRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -15,7 +16,9 @@ reportRouter.get('/', (req, res) => {
 });
 
 reportRouter.put('/', requireOperator, wrap(async (req, res) => {
-  res.json(store.update(req.body || {}));
+  const out = store.update(req.body || {});
+  audit(req, 'report.update', '', 'ok', 'Configuración de informe periódico');
+  res.json(out);
 }));
 
 // Vista previa: devuelve el HTML del informe (para abrir en el navegador)
@@ -74,6 +77,7 @@ reportRouter.get('/custom.pdf', wrap(async (req, res) => {
 reportRouter.post('/send', requireOperator, wrap(async (req, res) => {
   try {
     const { to } = await sendReport(store.getRaw());
+    audit(req, 'report.send', String(to || ''), 'ok');
     res.json({ ok: true, to });
   } catch (err) {
     res.status(err.status && err.status < 500 ? err.status : 200).json({ ok: false, error: err.message });
