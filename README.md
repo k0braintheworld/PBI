@@ -116,9 +116,10 @@ Si hay actualización disponible:
   - **Visor**: acceso de **solo lectura** al dashboard, copias, monitor de tareas e
     informes. Sin acceso a jobs, configuración, recuperación ni limpieza.
 - **Auditoría de acciones**: log persistente en `/var/lib/pbi/audit.jsonl` con cada
-  login/logout, creación/modificación de usuarios, lanzamiento de jobs y operaciones de
-  limpieza. Vista filtrable por usuario, acción y fecha, con **rotación configurable**
-  (tamaño máximo y nº de ficheros).
+  login/logout, alta de administrador, gestión de usuarios y de la cuenta (contraseña/2FA),
+  cambios en conexiones PBS/PVE, notificaciones e informes, trabajos de copia,
+  restauraciones y operaciones de limpieza. Vista filtrable por usuario, acción y fecha,
+  con **rotación configurable** (tamaño máximo y nº de ficheros).
 
 > El detalle de autenticación, cifrado y endurecimiento está en la sección
 > [🔐 Seguridad](#-seguridad).

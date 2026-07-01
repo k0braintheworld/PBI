@@ -7,6 +7,7 @@ import { pveSilenceBackupJobs } from '../pveService.js';
 import { setNotificationMatcherDisabled } from '../pbsService.js';
 import { sendMail, buildTestEmail } from '../mailer.js';
 import { getRaw as getReportCfg } from '../reportStore.js';
+import { audit } from '../auditLog.js';
 
 export const notifyRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -16,7 +17,9 @@ notifyRouter.get('/', (req, res) => res.json(store.masked()));
 
 // Guardar configuración
 notifyRouter.put('/', wrap(async (req, res) => {
-  res.json(store.update(req.body || {}));
+  const out = store.update(req.body || {});
+  audit(req, 'notify.update', '', 'ok', `Notificaciones ${out.enabled ? 'activadas' : 'desactivadas'}`);
+  res.json(out);
 }));
 
 // Silenciar / restaurar las notificaciones nativas de Proxmox (evita duplicados)
@@ -40,6 +43,7 @@ notifyRouter.post('/silence-proxmox', wrap(async (req, res) => {
   } else result.pbs = { error: 'Sin host PBS configurado' };
 
   store.update({ silenceProxmox: enable });
+  audit(req, 'notify.silence_proxmox', '', 'ok', enable ? 'Silenciadas' : 'Restauradas');
   res.json(result);
 }));
 

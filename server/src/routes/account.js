@@ -2,6 +2,7 @@ import { Router } from 'express';
 import QRCode from 'qrcode';
 import * as users from '../userStore.js';
 import { generateSecret, otpauthUri, verifyToken } from '../totp.js';
+import { audit } from '../auditLog.js';
 
 /** Autoservicio del usuario autenticado: su contraseña y su 2FA. */
 export const accountRouter = Router();
@@ -16,7 +17,9 @@ accountRouter.get('/', (req, res) => {
 // Cambiar la propia contraseña
 accountRouter.post('/password', wrap(async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
-  res.json(users.changePassword(req.user.userId, currentPassword, newPassword));
+  const out = users.changePassword(req.user.userId, currentPassword, newPassword);
+  audit(req, 'account.password', req.user.username, 'ok', 'Contraseña cambiada');
+  res.json(out);
 }));
 
 // Iniciar la configuración de 2FA: genera secreto pendiente + QR
@@ -37,7 +40,9 @@ accountRouter.post('/2fa/enable', wrap(async (req, res) => {
   if (!verifyToken(u.totpPending, req.body?.code)) {
     return res.status(400).json({ error: 'Código incorrecto. Revisa la hora del dispositivo e inténtalo de nuevo.' });
   }
-  res.json(users.enable2fa(u.id));
+  const out = users.enable2fa(u.id);
+  audit(req, 'account.2fa_enable', u.username, 'ok');
+  res.json(out);
 }));
 
 // Desactivar 2FA (requiere un código válido si está activo)
@@ -47,5 +52,7 @@ accountRouter.post('/2fa/disable', wrap(async (req, res) => {
   if (u.totpEnabled && !verifyToken(u.totpSecret, req.body?.code)) {
     return res.status(400).json({ error: 'Código incorrecto' });
   }
-  res.json(users.disable2fa(u.id));
+  const out = users.disable2fa(u.id);
+  audit(req, 'account.2fa_disable', u.username, 'ok');
+  res.json(out);
 }));

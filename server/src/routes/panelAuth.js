@@ -32,6 +32,7 @@ panelAuthRouter.post('/setup', wrap(async (req, res) => {
   const u = users.addUser({ username, password, role: 'admin' });
   const raw = users.getById(u.id);
   res.cookie(COOKIE, createSession(raw), cookieOpts);
+  audit(req, 'auth.setup', u.username, 'ok', 'Alta del primer administrador', { username: u.username, role: u.role });
   res.json({ ok: true, user: { username: u.username, role: u.role, id: u.id } });
 }));
 

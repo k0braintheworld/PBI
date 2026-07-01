@@ -3,6 +3,7 @@ import * as store from '../pveStore.js';
 import * as pve from '../pveService.js';
 import { pveStream } from '../pveClient.js';
 import * as restoreStore from '../restoreStore.js';
+import { audit } from '../auditLog.js';
 
 export const pveRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -18,17 +19,22 @@ pveRouter.get('/', (req, res) => res.json(store.listPve()));
 
 pveRouter.post('/', wrap(async (req, res) => {
   if (!req.body.host) return res.status(400).json({ error: 'Falta el campo host' });
-  res.json(store.addPve(req.body));
+  const p = store.addPve(req.body);
+  audit(req, 'pve.create', `${p.name || ''} (${req.body.host})`, 'ok');
+  res.json(p);
 }));
 
 pveRouter.put('/:id', wrap(async (req, res) => {
   const u = store.updatePve(req.params.id, req.body);
   if (!u) return res.status(404).json({ error: 'Conexión PVE no encontrada' });
+  audit(req, 'pve.update', u.name || req.params.id, 'ok');
   res.json(u);
 }));
 
 pveRouter.delete('/:id', wrap(async (req, res) => {
+  const prev = store.getPveRaw(req.params.id);
   if (!store.deletePve(req.params.id)) return res.status(404).json({ error: 'Conexión PVE no encontrada' });
+  audit(req, 'pve.delete', prev?.name || req.params.id, 'ok');
   res.json({ ok: true });
 }));
 
@@ -71,6 +77,7 @@ pveRouter.post('/:id/restore', wrap(async (req, res) => {
     return res.status(400).json({ error: 'Faltan node, vmid o archive' });
   }
   const upid = await pve.pveRestore(h, { node, type, vmid, archive, storage, force, start });
+  audit(req, 'restore', `${type === 'lxc' ? 'CT' : 'VM'} ${vmid}${force ? ' (sobrescribir)' : ''}`, 'ok', String(archive || ''));
   // Vigilar la tarea para notificar por email al terminar
   try {
     restoreStore.addWatch({
@@ -94,20 +101,28 @@ pveRouter.get('/:id/guests', wrap(async (req, res) => {
 }));
 pveRouter.post('/:id/backup-jobs', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
-  res.json(await pve.pveCreateBackupJob(h, req.body));
+  const out = await pve.pveCreateBackupJob(h, req.body);
+  audit(req, 'backupjob.create', req.body?.id || req.body?.storage || '', 'ok');
+  res.json(out);
 }));
 // Lanzar ahora un trabajo de copia ya configurado (vzdump)
 pveRouter.post('/:id/backup-jobs/:jobid/run', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
-  res.json({ results: await pve.pveRunBackupJob(h, req.params.jobid) });
+  const results = await pve.pveRunBackupJob(h, req.params.jobid);
+  audit(req, 'backupjob.run', req.params.jobid, 'ok');
+  res.json({ results });
 }));
 pveRouter.put('/:id/backup-jobs/:jobid', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
-  res.json(await pve.pveUpdateBackupJob(h, req.params.jobid, req.body));
+  const out = await pve.pveUpdateBackupJob(h, req.params.jobid, req.body);
+  audit(req, 'backupjob.update', req.params.jobid, 'ok');
+  res.json(out);
 }));
 pveRouter.delete('/:id/backup-jobs/:jobid', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;
-  res.json(await pve.pveDeleteBackupJob(h, req.params.jobid));
+  const out = await pve.pveDeleteBackupJob(h, req.params.jobid);
+  audit(req, 'backupjob.delete', req.params.jobid, 'ok');
+  res.json(out);
 }));
 
 // --- Seguimiento de tareas de PVE ---
