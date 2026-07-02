@@ -30,8 +30,9 @@ Panel: datastore, snapshot, protected-group and failed-verification counts; **pr
 devices** by type (VM / CT / Host); a **monthly, navigable backup calendar** (arrows to
 change month) showing the **number of backups per day**, colour-coded (successful /
 partial / failed / no backup) with today highlighted; **storage with two donuts** (physical
-NAS usage and the total logical size of all backups with the deduplication factor); latest
-backups; recent activity; and a daily transfer trend. The **week start** (Monday/Sunday) is
+NAS usage and the total logical size of all backups with the deduplication factor); an
+**unprotected machines** warning (Proxmox VE VMs with no backup in PBS); latest backups;
+recent activity; and a daily transfer trend. The **week start** (Monday/Sunday) is
 configurable.
 
 ### Backups
@@ -72,7 +73,8 @@ than the PBS-side task (which reports no progress).
   machines, with audit metadata, scope, per-machine policy (RPO/retention/mode),
   encryption and offsite status, a **backup calendar with the number of backups per day**,
   the **total logical backup size and deduplication factor**, and a statement — **HTML**
-  preview and **PDF** download.
+  preview and **PDF** download. The **last restore test** is auto-filled from the
+  scheduled restore tests.
 - **Scheduled email report**: configurable (daily/weekly/monthly), with the HTML report
   and the **attached PDF**; lets you set the **site**.
 - **CSV** exports of snapshots and task history.
@@ -84,12 +86,19 @@ in Proxmox VE), deletion by group or by snapshot — with old-backup highlightin
 space.
 
 ### Email notifications
-A background watcher that sends a **clean, structured** email when a task finishes
-(configurable types and success/failure) and when a **restore** finishes (manual or
-scheduled). The email includes:
+A background watcher (**multi-host**: it covers every configured PBS server) that sends
+a **clean, structured** email when a task finishes (configurable types and
+success/failure) and when a **restore** finishes (manual or scheduled). The email
+includes:
 - **Site / organisation name** in the subject, header and footer (read from the reports configuration).
 - **Backup type**: PBS category (VM / CT / Host) and Full/Incremental mode when determinable from the task log.
 - **Encryption status**: "Encrypted: Yes 🔒 / No" row when the log indicates the backup was encrypted.
+
+**Proactive monitoring** (alerts for what is NOT happening):
+- **RPO**: alert when a machine has gone more than N hours without a completed backup.
+- **Usage**: alert when a datastore exceeds the configured percentage.
+- **Daily digest** at your chosen time: last-24h failures, machines out of RPO, datastore
+  usage and unprotected machines.
 
 Notifications are **enabled by default** once SMTP is configured (host + recipient).
 Option to **silence all of Proxmox's native notifications** (PVE and PBS) so only PBI
@@ -250,6 +259,8 @@ the storages, uncheck "Privilege Separation" when creating it or assign it a rol
 - **HTTPS** with a self-signed certificate on `.deb` install (replaceable with your own
   in `/etc/pbi/pbi.env`).
 - Data files are created with `600` permissions.
+- **Configuration backup**: export/restore the whole configuration (hosts, users,
+  notifications, reports, jobs) from *Preferences* (admin only).
 - **No privilege escalation**: the panel process (`pbi.service`) runs with
   `NoNewPrivileges=true`. Updates are applied by a separate system service
   (`pbi-update.service`) triggered by a file — the web process never touches sudo.

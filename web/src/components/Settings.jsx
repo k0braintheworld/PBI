@@ -54,6 +54,20 @@ function Preferences({ isAdmin }) {
     } catch { /* ignore */ }
   }
 
+  const [impMsg, setImpMsg] = useState(null);
+  async function importConfig(file) {
+    if (!file) return;
+    setImpMsg(null);
+    try {
+      const data = JSON.parse(await file.text());
+      if (!(await confirmDialog({ message: tr('¿Restaurar la configuración desde esta copia? Sobrescribirá hosts, usuarios, notificaciones y trabajos.'), danger: true, confirmLabel: tr('Restaurar') }))) return;
+      const r = await api.configImport(data);
+      setImpMsg({ ok: true, text: `${tr('Configuración restaurada')} (${(r.written || []).length} ${tr('ficheros')}).` });
+    } catch (e) {
+      setImpMsg({ ok: false, text: e.message });
+    }
+  }
+
   return (
     <>
       <div className="card card-pad" style={{ maxWidth: 520 }}>
@@ -82,6 +96,29 @@ function Preferences({ isAdmin }) {
             {savedMsg && <span className="muted" style={{ fontSize: 12 }}>{savedMsg}</span>}
           </div>
           <p className="muted" style={{ fontSize: 12, marginTop: 10 }}>{tr('0 = desactivado. Se aplica a todos los usuarios. La sesión se cierra tras ese tiempo sin actividad.')}</p>
+        </div>
+      )}
+
+      {isAdmin && (
+        <div className="card card-pad" style={{ maxWidth: 520, marginTop: 16 }}>
+          <h3 style={{ marginTop: 0 }}>{tr('Copia de seguridad de la configuración')}</h3>
+          <p className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
+            {tr('Exporta hosts, usuarios, notificaciones, informes y trabajos en un único fichero. No incluye el log de auditoría.')}
+          </p>
+          <div className="btn-row">
+            <a className="btn primary" href="/api/config-backup/export">{tr('Descargar configuración')}</a>
+            <label className="btn" style={{ cursor: 'pointer' }}>
+              {tr('Restaurar desde fichero…')}
+              <input type="file" accept="application/json,.json" style={{ display: 'none' }}
+                onChange={(e) => { importConfig(e.target.files?.[0]); e.target.value = ''; }} />
+            </label>
+          </div>
+          {impMsg && (impMsg.ok
+            ? <div className="banner" style={{ marginTop: 10 }}>✓ {impMsg.text}</div>
+            : <div className="error-box" style={{ marginTop: 10 }}>✕ {impMsg.text}</div>)}
+          <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
+            {tr('Los secretos van cifrados con la clave derivada de SESSION_SECRET: para restaurar en otra instalación, copia también ese valor de /etc/pbi/pbi.env.')}
+          </p>
         </div>
       )}
     </>
@@ -350,6 +387,9 @@ function NotifySettings() {
       enabled: c.enabled, notifyOk: c.notifyOk, notifyFail: c.notifyFail,
       notifyRestore: c.notifyRestore !== false,
       silenceProxmox: !!c.silenceProxmox,
+      rpo: { enabled: !!c.rpo?.enabled, hours: c.rpo?.hours ?? 26 },
+      digest: { enabled: !!c.digest?.enabled, time: c.digest?.time || '08:00' },
+      storageAlert: { enabled: !!c.storageAlert?.enabled, percent: c.storageAlert?.percent ?? 85 },
       types: c.types || [], hasPass: c.smtp?.hasPass,
       smtp: { host: c.smtp?.host || '', port: c.smtp?.port || 587, secure: !!c.smtp?.secure, user: c.smtp?.user || '', pass: '', from: c.smtp?.from || '', to: c.smtp?.to || '' },
     })).catch(() => setForm(false));
@@ -363,7 +403,13 @@ function NotifySettings() {
   const toggleType = (t) => setForm((f) => ({ ...f, types: f.types.includes(t) ? f.types.filter((x) => x !== t) : [...f.types, t] }));
 
   function payload() {
-    const body = { enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, notifyRestore: form.notifyRestore, types: form.types, smtp: { ...form.smtp } };
+    const body = {
+      enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, notifyRestore: form.notifyRestore, types: form.types,
+      rpo: { enabled: !!form.rpo.enabled, hours: Math.max(1, Math.min(720, Number(form.rpo.hours) || 26)) },
+      digest: { enabled: !!form.digest.enabled, time: form.digest.time || '08:00' },
+      storageAlert: { enabled: !!form.storageAlert.enabled, percent: Math.max(50, Math.min(99, Number(form.storageAlert.percent) || 85)) },
+      smtp: { ...form.smtp },
+    };
     if (!body.smtp.pass) delete body.smtp.pass; // conservar la guardada
     return body;
   }
@@ -423,6 +469,37 @@ function NotifySettings() {
             ))}
           </div>
         </div>
+      </div>
+
+      <div className="card card-pad">
+        <h3 style={{ marginTop: 0 }}>{tr('Vigilancia proactiva')}</h3>
+        <p className="muted" style={{ marginTop: 4, fontSize: 12.5 }}>{tr('Avisos de lo que NO pasa: copias que faltan y discos que se llenan. Aplica a todos los servidores PBS configurados.')}</p>
+
+        <label style={{ display: 'flex', gap: 9, alignItems: 'center', margin: '6px 0' }}>
+          <input type="checkbox" checked={form.rpo.enabled} onChange={(e) => set('rpo', { ...form.rpo, enabled: e.target.checked })} />
+          <span>{tr('Avisar si una máquina lleva más de')}</span>
+          <input className="input" type="number" min="1" max="720" style={{ width: 80 }} value={form.rpo.hours}
+            onChange={(e) => set('rpo', { ...form.rpo, hours: e.target.value })} />
+          <span>{tr('horas sin copia (RPO)')}</span>
+        </label>
+
+        <label style={{ display: 'flex', gap: 9, alignItems: 'center', margin: '6px 0' }}>
+          <input type="checkbox" checked={form.storageAlert.enabled} onChange={(e) => set('storageAlert', { ...form.storageAlert, enabled: e.target.checked })} />
+          <span>{tr('Avisar si un datastore supera el')}</span>
+          <input className="input" type="number" min="50" max="99" style={{ width: 70 }} value={form.storageAlert.percent}
+            onChange={(e) => set('storageAlert', { ...form.storageAlert, percent: e.target.value })} />
+          <span>{tr('% de ocupación')}</span>
+        </label>
+
+        <label style={{ display: 'flex', gap: 9, alignItems: 'center', margin: '6px 0' }}>
+          <input type="checkbox" checked={form.digest.enabled} onChange={(e) => set('digest', { ...form.digest, enabled: e.target.checked })} />
+          <span>{tr('Resumen diario por email a las')}</span>
+          <input className="input" type="time" style={{ width: 110 }} value={form.digest.time}
+            onChange={(e) => set('digest', { ...form.digest, time: e.target.value })} />
+          <span className="muted" style={{ fontSize: 12 }}>{tr('(fallos, RPO, ocupación y máquinas sin proteger)')}</span>
+        </label>
+
+        <p className="muted" style={{ fontSize: 11.5, marginBottom: 0 }}>{tr('Los avisos de RPO y ocupación se envían como máximo una vez al día por máquina/datastore. Guarda la configuración para aplicar.')}</p>
       </div>
 
       <div className="card card-pad">

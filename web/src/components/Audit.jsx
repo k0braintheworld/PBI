@@ -42,6 +42,8 @@ const ACTION_LABELS = {
   'report.update': 'Config. informes',
   'report.send': 'Enviar informe',
   'security.update': 'Config. de seguridad',
+  'config.export': 'Exportar configuración',
+  'config.import': 'Restaurar configuración',
 };
 const actionLabel = (code) => ACTION_LABELS[code] || code;
 

@@ -272,6 +272,8 @@ export async function getDashboard(auth) {
     storage,
     calendar,
     transfer,
+    // IDs (vmid) con al menos una copia — para detectar máquinas sin proteger
+    protectedIds: [...new Set([...groups.values()].map((g) => String(g['backup-id'])))],
     lastBackups: lastBackups.slice(0, 12),
     recentTasks: [...tasks]
       .sort((a, b) => (b.starttime || 0) - (a.starttime || 0))

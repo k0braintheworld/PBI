@@ -17,6 +17,7 @@ export default function Dashboard({ goTo }) {
   if (error) return <ErrorBox error={error} />;
 
   const { counters, storage, transfer, lastBackups, recentTasks } = data;
+  const unprotected = data.unprotected || [];
   const totalPct = storage.totalCapacity ? (storage.totalUsed / storage.totalCapacity) * 100 : 0;
   const logical = storage.logical || 0;
   const dedup = storage.totalUsed > 0 ? logical / storage.totalUsed : 0;
@@ -49,6 +50,25 @@ export default function Dashboard({ goTo }) {
               <button className="btn sm" onClick={() => goTo('backups')}>{t('Ver backups →')}</button>
             </div>
           </div>
+
+          {/* Máquinas sin proteger */}
+          {unprotected.length > 0 && (
+            <div className="card">
+              <div className="panel-head">
+                <h3 style={{ color: 'var(--warn)' }}>⚠ {t('Máquinas sin proteger')}</h3>
+                <span className="badge warn">{unprotected.length}</span>
+              </div>
+              <div className="panel-body" style={{ fontSize: 12.5 }}>
+                {unprotected.slice(0, 8).map((g) => (
+                  <div key={g.vmid} style={{ padding: '3px 0' }}>
+                    <span className="badge muted plain">{g.type === 'lxc' ? 'ct' : 'vm'}</span> <b>{g.vmid}</b>{g.name ? <span className="muted"> · {g.name}</span> : null}
+                  </div>
+                ))}
+                {unprotected.length > 8 && <div className="muted" style={{ paddingTop: 4 }}>+{unprotected.length - 8} {t('más')}</div>}
+                <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>{t('Máquinas de Proxmox VE sin ninguna copia en este PBS.')}</p>
+              </div>
+            </div>
+          )}
 
           {/* Almacenamiento */}
           <div className="card">

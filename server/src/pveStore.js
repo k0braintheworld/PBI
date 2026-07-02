@@ -74,6 +74,7 @@ function normalize(input, extra) {
 }
 
 export function listPve() { return readAll().map(mask); }
+export function listPveRaw() { return readAll(); }
 export function getPveRaw(id) { return readAll().find((h) => h.id === id) || null; }
 export function getDefaultPve() { const a = readAll(); return a.find((h) => h.isDefault) || a[0] || null; }
 

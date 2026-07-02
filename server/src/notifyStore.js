@@ -23,6 +23,11 @@ const DEFAULTS = {
   types: ['backup', 'verify', 'prune', 'sync', 'garbage_collection'],
   smtp: { host: '', port: 587, secure: false, user: '', pass: '', from: '', to: '' },
   silencedMatchers: { pbs: [], pve: [] },
+  // Vigilancia proactiva: aviso de máquinas fuera de RPO (sin copia reciente),
+  // resumen diario por email y umbral de ocupación de datastores.
+  rpo: { enabled: false, hours: 26 },
+  digest: { enabled: false, time: '08:00' },
+  storageAlert: { enabled: false, percent: 85 },
   state: { lastSeen: null },
 };
 
@@ -35,7 +40,15 @@ export function getRaw() {
   ensure();
   try {
     const c = JSON.parse(fs.readFileSync(FILE, 'utf8'));
-    const cfg = { ...DEFAULTS, ...c, smtp: { ...DEFAULTS.smtp, ...(c.smtp || {}) }, state: { ...DEFAULTS.state, ...(c.state || {}) } };
+    const cfg = {
+      ...DEFAULTS,
+      ...c,
+      smtp: { ...DEFAULTS.smtp, ...(c.smtp || {}) },
+      rpo: { ...DEFAULTS.rpo, ...(c.rpo || {}) },
+      digest: { ...DEFAULTS.digest, ...(c.digest || {}) },
+      storageAlert: { ...DEFAULTS.storageAlert, ...(c.storageAlert || {}) },
+      state: { ...DEFAULTS.state, ...(c.state || {}) },
+    };
     if (cfg.smtp.pass) cfg.smtp.pass = decryptSecret(cfg.smtp.pass);
     return cfg;
   } catch {
@@ -70,6 +83,9 @@ export function update(input) {
   if (input.smtp) {
     next.smtp = { ...cur.smtp, ...input.smtp };
     if (!input.smtp.pass) next.smtp.pass = cur.smtp.pass; // conservar si vacío
+  }
+  for (const k of ['rpo', 'digest', 'storageAlert']) {
+    if (input[k]) next[k] = { ...cur[k], ...input[k] };
   }
   // Auto-activar cuando se configura SMTP con host + destinatario, salvo que
   // el usuario haya marcado explícitamente enabled=false en esta llamada.

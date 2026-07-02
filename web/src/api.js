@@ -44,6 +44,7 @@ export const api = {
   authSetup: (body) => req('POST', '/auth/setup', body),
   authLogout: () => req('POST', '/auth/logout'),
   security: () => req('GET', '/security'),
+  configImport: (body) => req('POST', '/config-backup/import', body),
   setSecurity: (body) => req('PUT', '/security', body),
 
   // Mi cuenta (autoservicio)

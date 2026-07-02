@@ -1,21 +1,26 @@
-import { getDefaultHost } from './hostStore.js';
+import { listHostsRaw } from './hostStore.js';
 import { authForHost } from './authResolver.js';
-import { listTasks, getTaskLog } from './pbsService.js';
+import { listTasks, getTaskLog, listDatastores, listSnapshots, getDatastoreStatus } from './pbsService.js';
 import { getDefaultPve } from './pveStore.js';
 import { pveGuests } from './pveService.js';
 import * as notifyStore from './notifyStore.js';
 import { getRaw as getReportCfg } from './reportStore.js';
-import { sendMail, buildTaskEmail } from './mailer.js';
+import { sendMail, buildTaskEmail, buildRpoEmail, buildStorageEmail, buildDigestEmail } from './mailer.js';
 
 /**
- * Vigilante en segundo plano: sondea las tareas finalizadas del PBS por
- * defecto y envía un email por cada una nueva (según la configuración).
- * Deduplica por UPID en memoria y guarda una marca de tiempo persistente
- * para no reenviar tras un reinicio.
+ * Vigilante en segundo plano (multi-host):
+ *  - Tareas: sondea las tareas finalizadas de TODOS los hosts PBS y envía un
+ *    email por cada una nueva (según la configuración). Dedupe por host+UPID.
+ *  - RPO: avisa de máquinas sin copia completada en las últimas N horas.
+ *  - Almacenamiento: avisa de datastores por encima del umbral de ocupación.
+ *  - Resumen diario: un email a la hora configurada con el estado de las
+ *    últimas 24 h (fallos, RPO, ocupación, máquinas sin proteger).
  */
 
 const POLL_MS = 60_000;
+const ALERT_EVERY_TICKS = 15; // RPO/almacenamiento: cada ~15 min
 const isOk = (s) => s === 'OK' || /^WARNINGS/i.test(s || '');
+const todayKey = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 
 async function getBackupDetails(auth, upid) {
   try {
@@ -35,6 +40,7 @@ const notified = new Set();
 let guestCache = { ts: 0, map: {} };
 let timer = null;
 let running = false;
+let tick = 0;
 
 async function guestNames() {
   if (Date.now() - guestCache.ts < 300_000) return guestCache.map;
@@ -52,6 +58,183 @@ async function guestNames() {
   }
 }
 
+/** Última copia completada por grupo (vm/ct) en todos los datastores del host. */
+async function backupFreshness(auth) {
+  const stores = await listDatastores(auth);
+  const results = await Promise.all(stores.map((ds) => listSnapshots(auth, ds.store).catch(() => [])));
+  const byGroup = new Map();
+  for (const snaps of results) {
+    for (const s of snaps) {
+      const type = s['backup-type'];
+      if (type !== 'vm' && type !== 'ct') continue;
+      const k = `${type}/${s['backup-id']}`;
+      const t = s['backup-time'] || 0;
+      const prev = byGroup.get(k);
+      if (!prev || t > prev.last) byGroup.set(k, { type, id: String(s['backup-id']), last: t });
+    }
+  }
+  return byGroup;
+}
+
+/** Ocupación por datastore del host. */
+async function storageUsage(auth) {
+  const stores = await listDatastores(auth);
+  const st = await Promise.all(stores.map((ds) => getDatastoreStatus(auth, ds.store).catch(() => null)));
+  return stores.map((ds, i) => {
+    const s = st[i];
+    const pct = s?.total ? Math.round((s.used / s.total) * 100) : null;
+    return { store: ds.store, pct, used: s?.used, total: s?.total };
+  }).filter((d) => d.pct != null);
+}
+
+// --- Notificación de tareas finalizadas (por host) --------------------------
+
+async function pollTasksForHost(cfg, host, seenMap, names, sede) {
+  const now = Math.floor(Date.now() / 1000);
+  let lastSeen = seenMap[host.id];
+  // Primera vez para este host: fijar línea base y no inundar con tareas viejas.
+  if (!lastSeen) { seenMap[host.id] = now; return; }
+
+  const auth = await authForHost(host);
+  const tasks = await listTasks(auth, { limit: 500, since: lastSeen - 6 * 3600 });
+  const fresh = (tasks || [])
+    .filter((t) => t.endtime != null && t.endtime > lastSeen && (cfg.types || []).includes(t.type))
+    .sort((a, b) => (a.endtime || 0) - (b.endtime || 0));
+  if (!fresh.length) return;
+
+  let maxEnd = lastSeen;
+  for (const t of fresh) {
+    maxEnd = Math.max(maxEnd, t.endtime);
+    const ok = isOk(t.status);
+    if ((ok && !cfg.notifyOk) || (!ok && !cfg.notifyFail)) continue;
+    const key = `${host.id}:${t.upid}`;
+    if (notified.has(key)) continue;
+    try {
+      const { backupMode, encrypted } = t.type === 'backup' ? await getBackupDetails(auth, t.upid) : {};
+      const mail = buildTaskEmail(t, { hostName: host.name, names, sede, backupMode, encrypted });
+      await sendMail(cfg.smtp, mail);
+      notified.add(key);
+    } catch (e) {
+      console.error('[notifier] error enviando email:', e.message);
+    }
+  }
+  if (maxEnd > lastSeen) seenMap[host.id] = maxEnd;
+}
+
+// --- Avisos proactivos (RPO + almacenamiento) --------------------------------
+
+async function checkAlerts(cfg, hosts, names, sede) {
+  const now = Math.floor(Date.now() / 1000);
+  const today = todayKey();
+  const state = notifyStore.getRaw().state || {};
+
+  if (cfg.rpo?.enabled) {
+    const hours = Number(cfg.rpo.hours) || 26;
+    const out = [];
+    for (const host of hosts) {
+      try {
+        const auth = await authForHost(host);
+        const fresh = await backupFreshness(auth);
+        for (const g of fresh.values()) {
+          if (now - (g.last || 0) > hours * 3600) out.push({ ...g, host: host.name, hostId: host.id });
+        }
+      } catch { /* host inaccesible: se avisará por otra vía */ }
+    }
+    const alerted = { ...(state.rpoAlerted || {}) };
+    const freshOnes = out.filter((m) => alerted[`${m.hostId}/${m.type}/${m.id}`] !== today);
+    if (freshOnes.length) {
+      try {
+        await sendMail(cfg.smtp, buildRpoEmail(out, { sede, hours, names }));
+        for (const m of out) alerted[`${m.hostId}/${m.type}/${m.id}`] = today;
+        notifyStore.setState({ rpoAlerted: alerted });
+      } catch (e) { console.error('[notifier] error email RPO:', e.message); }
+    }
+  }
+
+  if (cfg.storageAlert?.enabled) {
+    const percent = Number(cfg.storageAlert.percent) || 85;
+    const hot = [];
+    for (const host of hosts) {
+      try {
+        const auth = await authForHost(host);
+        for (const d of await storageUsage(auth)) {
+          if (d.pct >= percent) hot.push({ ...d, host: host.name, hostId: host.id });
+        }
+      } catch { /* ignore */ }
+    }
+    const alerted = { ...(state.storageAlerted || {}) };
+    const freshOnes = hot.filter((d) => alerted[`${d.hostId}/${d.store}`] !== today);
+    if (freshOnes.length) {
+      try {
+        await sendMail(cfg.smtp, buildStorageEmail(hot, { sede, percent }));
+        for (const d of hot) alerted[`${d.hostId}/${d.store}`] = today;
+        notifyStore.setState({ storageAlerted: alerted });
+      } catch (e) { console.error('[notifier] error email almacenamiento:', e.message); }
+    }
+  }
+}
+
+// --- Resumen diario -----------------------------------------------------------
+
+async function sendDigestIfDue(cfg, hosts, names, sede) {
+  if (!cfg.digest?.enabled) return;
+  const today = todayKey();
+  const state = notifyStore.getRaw().state || {};
+  if (state.lastDigest === today) return;
+  const nowHM = new Date().toTimeString().slice(0, 5);
+  if (nowHM < (cfg.digest.time || '08:00')) return;
+
+  const now = Math.floor(Date.now() / 1000);
+  const rpoHours = Number(cfg.rpo?.hours) || 26;
+  const sections = [];
+  const protectedIds = new Set();
+
+  for (const host of hosts) {
+    try {
+      const auth = await authForHost(host);
+      const [tasks, fresh, storage] = await Promise.all([
+        listTasks(auth, { limit: 2000, since: now - 24 * 3600 }).catch(() => []),
+        backupFreshness(auth),
+        storageUsage(auth),
+      ]);
+      const done = (tasks || []).filter((t) => t.endtime != null && t.endtime > now - 24 * 3600);
+      const failures = done.filter((t) => !isOk(t.status)).slice(0, 10)
+        .map((t) => ({ type: t.type, id: t.id, status: t.status }));
+      const outOfRpo = [...fresh.values()].filter((g) => now - (g.last || 0) > rpoHours * 3600);
+      for (const g of fresh.values()) protectedIds.add(String(g.id));
+      sections.push({
+        host: host.name || host.host,
+        ok: done.filter((t) => isOk(t.status)).length,
+        fail: done.length - done.filter((t) => isOk(t.status)).length,
+        failures,
+        outOfRpo,
+        storage,
+      });
+    } catch (e) {
+      sections.push({ host: host.name || host.host, ok: 0, fail: 0, failures: [{ type: 'conexión', id: '—', status: e.message }], outOfRpo: [], storage: [] });
+    }
+  }
+
+  // Máquinas de PVE sin ninguna copia en ningún host PBS
+  let unprotected = [];
+  try {
+    const pve = getDefaultPve();
+    if (pve) {
+      const guests = await pveGuests(pve);
+      unprotected = (guests || [])
+        .filter((g) => !g.template && !protectedIds.has(String(g.vmid)))
+        .map((g) => ({ vmid: g.vmid, name: g.name || '' }));
+    }
+  } catch { /* ignore */ }
+
+  try {
+    await sendMail(cfg.smtp, buildDigestEmail({ sections, unprotected, names }, { sede }));
+    notifyStore.setState({ lastDigest: today });
+  } catch (e) { console.error('[notifier] error resumen diario:', e.message); }
+}
+
+// --- Bucle principal ----------------------------------------------------------
+
 async function poll() {
   if (running) return;
   running = true;
@@ -59,40 +242,26 @@ async function poll() {
     const cfg = notifyStore.getRaw();
     if (!cfg.enabled || !cfg.smtp?.host || !cfg.smtp?.to) return;
 
-    const host = getDefaultHost();
-    if (!host) return;
+    const hosts = listHostsRaw();
+    if (!hosts.length) return;
 
-    const now = Math.floor(Date.now() / 1000);
-    let lastSeen = cfg.state?.lastSeen;
-    // Primera ejecución: fijamos línea base y no inundamos con tareas viejas.
-    if (!lastSeen) { notifyStore.setState({ lastSeen: now }); return; }
-
-    const auth = await authForHost(host);
-    const tasks = await listTasks(auth, { limit: 500, since: lastSeen - 6 * 3600 });
-    const fresh = (tasks || [])
-      .filter((t) => t.endtime != null && t.endtime > lastSeen && (cfg.types || []).includes(t.type))
-      .sort((a, b) => (a.endtime || 0) - (b.endtime || 0));
-
-    if (!fresh.length) return;
     const names = await guestNames();
     const sede = getReportCfg()?.sede || '';
-    let maxEnd = lastSeen;
 
-    for (const t of fresh) {
-      maxEnd = Math.max(maxEnd, t.endtime);
-      const ok = isOk(t.status);
-      if ((ok && !cfg.notifyOk) || (!ok && !cfg.notifyFail)) continue;
-      if (notified.has(t.upid)) continue;
-      try {
-        const { backupMode, encrypted } = t.type === 'backup' ? await getBackupDetails(auth, t.upid) : {};
-        const mail = buildTaskEmail(t, { hostName: host.name, names, sede, backupMode, encrypted });
-        await sendMail(cfg.smtp, mail);
-        notified.add(t.upid);
-      } catch (e) {
-        console.error('[notifier] error enviando email:', e.message);
-      }
+    // Mapa de última tarea vista por host (migra el formato antiguo: un número global)
+    const st = cfg.state || {};
+    const seenMap = (st.lastSeen && typeof st.lastSeen === 'object') ? { ...st.lastSeen } : {};
+    if (typeof st.lastSeen === 'number') for (const h of hosts) seenMap[h.id] = seenMap[h.id] || st.lastSeen;
+
+    for (const host of hosts) {
+      try { await pollTasksForHost(cfg, host, seenMap, names, sede); }
+      catch (e) { console.error(`[notifier] ${host.name || host.id}:`, e.message); }
     }
-    if (maxEnd > lastSeen) notifyStore.setState({ lastSeen: maxEnd });
+    notifyStore.setState({ lastSeen: seenMap });
+
+    tick += 1;
+    if (tick % ALERT_EVERY_TICKS === 1) await checkAlerts(cfg, hosts, names, sede);
+    await sendDigestIfDue(cfg, hosts, names, sede);
   } catch (e) {
     console.error('[notifier] error en el sondeo:', e.message);
   } finally {
@@ -105,5 +274,5 @@ export function startNotifier() {
   timer = setInterval(poll, POLL_MS);
   // Primer sondeo a los 5s del arranque (para fijar la línea base pronto).
   setTimeout(poll, 5000);
-  console.log(`  Notificaciones: vigilante activo (sondeo cada ${POLL_MS / 1000}s)`);
+  console.log(`  Notificaciones: vigilante activo (sondeo cada ${POLL_MS / 1000}s, multi-host)`);
 }

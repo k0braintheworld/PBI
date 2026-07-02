@@ -32,8 +32,9 @@ Panel: nº de datastores, snapshots, grupos protegidos y verificaciones fallidas
 navegable** (flechas para cambiar de mes) que muestra el **nº de copias por día** con
 código de color (correcta / parcial / con fallo / sin copia) y el día actual resaltado;
 **almacenamiento con dos donuts** (uso físico del NAS y tamaño lógico total de las copias
-con factor de deduplicación); últimas copias; actividad reciente; y tendencia de
-transferencia diaria. El **inicio de semana** (lunes/domingo) es configurable.
+con factor de deduplicación); aviso de **máquinas sin proteger** (VMs de Proxmox VE sin
+ninguna copia en PBS); últimas copias; actividad reciente; y tendencia de transferencia
+diaria. El **inicio de semana** (lunes/domingo) es configurable.
 
 ### Copias de seguridad
 Explorador de **snapshots** por datastore con filtro por id/propietario/comentario,
@@ -75,7 +76,8 @@ del lado PBS (que no reporta progreso).
   y máquinas concretas, con metadatos de auditoría, alcance, política por máquina
   (RPO/retención/modo), estado de cifrado y copia externa, **calendario de copias con el
   nº de copias por día**, **tamaño total de copias (lógico) y factor de deduplicación**, y
-  declaración — vista previa en **HTML** y descarga en **PDF**.
+  declaración — vista previa en **HTML** y descarga en **PDF**. La **última prueba de
+  restauración** se rellena automáticamente desde los tests de restauración programados.
 - **Informe periódico por email**: programable (diario/semanal/mensual), con el informe
   en HTML y el **PDF adjunto**; permite indicar la **sede**.
 - Descargas **CSV** de snapshots e historial de tareas.
@@ -87,12 +89,19 @@ antiguas para casos de **reutilización de VMID**— y **Garbage Collection** po
 para reclamar el espacio físico en disco.
 
 ### Notificaciones por email
-Vigilante en segundo plano que envía un email **limpio y estructurado** cuando termina
-una tarea (tipos y éxito/fallo configurables) y cuando termina una **restauración**
-(manual o programada). El email incluye:
+Vigilante en segundo plano (**multi-host**: cubre todos los servidores PBS configurados)
+que envía un email **limpio y estructurado** cuando termina una tarea (tipos y
+éxito/fallo configurables) y cuando termina una **restauración** (manual o programada).
+El email incluye:
 - **Sede / nombre de organización** en asunto, cabecera y pie (leído de la configuración de informes).
 - **Tipo de copia**: categoría PBS (VM / CT / Host) y modo Full/Incremental si se puede determinar del log de la tarea.
 - **Estado de cifrado**: fila «Cifrado: Sí 🔒 / No» cuando el log indica que el backup se cifró.
+
+**Vigilancia proactiva** (avisos de lo que NO pasa):
+- **RPO**: aviso si una máquina lleva más de N horas sin copia completada.
+- **Ocupación**: aviso si un datastore supera el % configurado.
+- **Resumen diario** a la hora elegida: fallos de las últimas 24 h, máquinas fuera de
+  RPO, ocupación por datastore y máquinas sin proteger.
 
 Las notificaciones se **activan por defecto** al configurar el SMTP (host + destinatario).
 Opción para **silenciar todas las notificaciones nativas de Proxmox** (PVE y PBS) y que
@@ -252,6 +261,8 @@ almacenamientos, desmarca «Separación de privilegios» al crearlo o asígnale 
 - **HTTPS** con certificado autofirmado en la instalación `.deb` (sustituible por uno
   propio en `/etc/pbi/pbi.env`).
 - Los ficheros de datos se crean con permisos `600`.
+- **Copia de seguridad de la configuración**: exporta/restaura toda la configuración
+  (hosts, usuarios, notificaciones, informes, trabajos) desde *Preferencias* (solo admin).
 - **Sin escalada de privilegios**: el proceso del panel (`pbi.service`) se ejecuta con
   `NoNewPrivileges=true`. Las actualizaciones las aplica un servicio separado de sistema
   (`pbi-update.service`) activado por fichero, sin que el proceso web toque nunca sudo.

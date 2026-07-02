@@ -80,6 +80,11 @@ export function listHosts() {
   return readAll().map(mask);
 }
 
+/** Lista de hosts crudos (con secretos) para uso interno (vigilantes multi-host). */
+export function listHostsRaw() {
+  return readAll();
+}
+
 /** Devuelve el host crudo (con secretos) para uso interno del backend. */
 export function getHostRaw(id) {
   return readAll().find((h) => h.id === id) || null;

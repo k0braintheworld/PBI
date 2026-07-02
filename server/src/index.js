@@ -10,6 +10,7 @@ import { panelAuthRouter } from './routes/panelAuth.js';
 import { usersRouter } from './routes/users.js';
 import { accountRouter } from './routes/account.js';
 import { securityRouter } from './routes/security.js';
+import { configBackupRouter } from './routes/configBackup.js';
 import { requireAuth, requireAdmin, requireOperator } from './session.js';
 import { hostsRouter } from './routes/hosts.js';
 import { pveRouter } from './routes/pve.js';
@@ -95,6 +96,7 @@ app.use('/api', requireAuth);
 
 app.use('/api/account', accountRouter);
 app.use('/api/security', securityRouter);
+app.use('/api/config-backup', configBackupRouter);
 app.use('/api/users', requireAdmin, usersRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/hosts', hostsRouter);

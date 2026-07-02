@@ -7,7 +7,19 @@ import { pveGuests, pveBackupJobs } from './pveService.js';
 import { computeReport, renderHtml, periodRange } from './reportService.js';
 import { renderPdf } from './reportPdf.js';
 import { listDatastores, listSnapshots, listJobs } from './pbsService.js';
+import { listJobs as listRestoreJobs } from './restoreStore.js';
 import { sendMail } from './mailer.js';
+
+/** Última prueba de restauración correcta (de los tests programados de PBI). */
+function lastRestoreTestLabel() {
+  try {
+    const ok = listRestoreJobs().filter((j) => j.lastResult?.ok && j.lastResult?.at);
+    const best = ok.sort((a, b) => (b.lastResult.at || 0) - (a.lastResult.at || 0))[0];
+    if (!best) return '';
+    const d = new Date(best.lastResult.at * 1000).toLocaleDateString('es-ES');
+    return `${d} · ${best.type === 'lxc' ? 'CT' : 'VM'} ${best.sourceVmid} → VMID ${best.targetVmid} (OK, automática)`;
+  } catch { return ''; }
+}
 
 async function guestNames() {
   try {
@@ -116,7 +128,7 @@ export async function generateCustomReport({ from, to, vmids, sede, title, respo
   const auth = await authForHost(host);
   const names = await guestNames();
   const [policies, offsite] = await Promise.all([gatherPolicies(), gatherOffsite(auth)]);
-  const meta = { reportId, emittedAt: new Date().toLocaleString('es-ES'), generatedBy, responsable, restoreTest };
+  const meta = { reportId, emittedAt: new Date().toLocaleString('es-ES'), generatedBy, responsable, restoreTest: restoreTest || lastRestoreTestLabel() };
   const r = await computeReport(auth, { from, to }, {
     sede, hostName: host.name, names, title: title || 'Informe de copias de seguridad', vmids, meta, policies, offsite,
   });

@@ -26,7 +26,19 @@ apiRouter.get('/overview', wrap(async (req, res) => {
 }));
 
 apiRouter.get('/dashboard', wrap(async (req, res) => {
-  res.json(await pbs.getDashboard(req.auth));
+  const dash = await pbs.getDashboard(req.auth);
+  // Máquinas de PVE sin ninguna copia en este PBS (excluye plantillas)
+  try {
+    const pve = getDefaultPve();
+    if (pve) {
+      const ids = new Set(dash.protectedIds || []);
+      const guests = await pveGuests(pve);
+      dash.unprotected = (guests || [])
+        .filter((g) => !g.template && !ids.has(String(g.vmid)))
+        .map((g) => ({ vmid: g.vmid, name: g.name || '', type: g.type }));
+    }
+  } catch { /* sin PVE o inaccesible: omitir */ }
+  res.json(dash);
 }));
 
 // --- Datastores / snapshots ------------------------------------------------

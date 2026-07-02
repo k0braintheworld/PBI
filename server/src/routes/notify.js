@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import * as store from '../notifyStore.js';
-import { getDefaultHost } from '../hostStore.js';
-import { getDefaultPve } from '../pveStore.js';
+import { getDefaultHost, listHostsRaw } from '../hostStore.js';
+import { listPveRaw, getDefaultPve } from '../pveStore.js';
 import { authForHost } from '../authResolver.js';
 import { pveSilenceBackupJobs, pveListNotificationMatchers, pveSetNotificationMatcherDisabled } from '../pveService.js';
 import { setNotificationMatcherDisabled, listNotificationMatchers } from '../pbsService.js';
@@ -33,59 +33,76 @@ notifyRouter.post('/silence-proxmox', wrap(async (req, res) => {
   const result = { enable, pve: null, pbs: null };
   const silenced = { pbs: [], pve: [] };
 
-  const pve = getDefaultPve();
-  if (pve) {
-    try {
-      // 1) Trabajos vzdump: sin correo directo (legacy sendmail sin mailto)
-      const jobs = await pveSilenceBackupJobs(pve, enable);
-      // 2) Sistema de notificaciones del datacenter (PVE 8.1+): todos los matchers
-      let touched = [];
-      let supported = true;
+  // --- Lado PVE: todas las conexiones configuradas ---
+  const pves = listPveRaw();
+  if (pves.length) {
+    let total = 0; let changed = 0; let matchers = 0; let supported = true; const errors = [];
+    for (const pve of pves) {
       try {
-        if (enable) {
-          const matchers = (await pveListNotificationMatchers(pve)) || [];
-          for (const m of matchers) {
-            if (m.disable) continue; // respetar los ya desactivados por el usuario
-            try { await pveSetNotificationMatcherDisabled(pve, m.name, true); touched.push(m.name); } catch { /* seguir */ }
+        // 1) Trabajos vzdump: sin correo directo (legacy sendmail sin mailto)
+        const jobs = await pveSilenceBackupJobs(pve, enable);
+        total += jobs.total; changed += jobs.changed;
+        // 2) Sistema de notificaciones del datacenter (PVE 8.1+): todos los matchers
+        try {
+          if (enable) {
+            const list = (await pveListNotificationMatchers(pve)) || [];
+            for (const m of list) {
+              if (m.disable) continue; // respetar los ya desactivados por el usuario
+              try { await pveSetNotificationMatcherDisabled(pve, m.name, true); silenced.pve.push(`${pve.id}:${m.name}`); matchers += 1; } catch { /* seguir */ }
+            }
+          } else {
+            const keys = prev.pve?.length ? prev.pve : [`${pve.id}:default-matcher`];
+            const defId = getDefaultPve()?.id;
+            for (const key of keys) {
+              // formato nuevo `pveId:matcher`; el antiguo (solo nombre) se asigna al PVE por defecto
+              const i = key.indexOf(':');
+              const id = i >= 0 ? key.slice(0, i) : defId;
+              const name = i >= 0 ? key.slice(i + 1) : key;
+              if (id !== pve.id) continue;
+              try { await pveSetNotificationMatcherDisabled(pve, name, false); matchers += 1; } catch { /* seguir */ }
+            }
           }
-        } else {
-          const names = prev.pve?.length ? prev.pve : ['default-matcher'];
-          for (const name of names) {
-            try { await pveSetNotificationMatcherDisabled(pve, name, false); touched.push(name); } catch { /* seguir */ }
-          }
-        }
-      } catch { supported = false; } // PVE antiguo sin API de notificaciones
-      silenced.pve = enable ? touched : [];
-      result.pve = { ...jobs, matchers: touched.length, matchersSupported: supported };
-    } catch (e) { result.pve = { error: e.message }; }
+        } catch { supported = false; } // PVE antiguo sin API de notificaciones
+      } catch (e) { errors.push(`${pve.name || pve.id}: ${e.message}`); }
+    }
+    result.pve = { total, changed, matchers, matchersSupported: supported, ...(errors.length ? { error: errors.join(' · ') } : {}) };
   } else result.pve = { error: 'Sin conexión Proxmox VE configurada' };
 
-  const host = getDefaultHost();
-  if (host) {
-    try {
-      const auth = await authForHost(host);
-      let touched = [];
-      if (enable) {
-        const matchers = await listNotificationMatchers(auth).catch(() => null);
-        if (Array.isArray(matchers)) {
-          for (const m of matchers) {
-            if (m.disable) continue;
-            try { await setNotificationMatcherDisabled(auth, m.name, true); touched.push(m.name); } catch { /* seguir */ }
+  // --- Lado PBS: todos los hosts configurados ---
+  const hosts = listHostsRaw();
+  if (hosts.length) {
+    let matchers = 0; const errors = [];
+    for (const host of hosts) {
+      try {
+        const auth = await authForHost(host);
+        if (enable) {
+          const list = await listNotificationMatchers(auth).catch(() => null);
+          if (Array.isArray(list)) {
+            for (const m of list) {
+              if (m.disable) continue;
+              try { await setNotificationMatcherDisabled(auth, m.name, true); silenced.pbs.push(`${host.id}:${m.name}`); matchers += 1; } catch { /* seguir */ }
+            }
+          } else {
+            // PBS sin listado de matchers: al menos el matcher por defecto
+            await setNotificationMatcherDisabled(auth, 'default-matcher', true);
+            silenced.pbs.push(`${host.id}:default-matcher`);
+            matchers += 1;
           }
         } else {
-          // PBS sin listado de matchers: al menos el matcher por defecto
-          await setNotificationMatcherDisabled(auth, 'default-matcher', true);
-          touched.push('default-matcher');
+          const keys = prev.pbs?.length ? prev.pbs : [`${host.id}:default-matcher`];
+          const defId = getDefaultHost()?.id;
+          for (const key of keys) {
+            // formato nuevo `hostId:matcher`; el antiguo (solo nombre) se asigna al host por defecto
+            const i = key.indexOf(':');
+            const id = i >= 0 ? key.slice(0, i) : defId;
+            const name = i >= 0 ? key.slice(i + 1) : key;
+            if (id !== host.id) continue;
+            try { await setNotificationMatcherDisabled(auth, name, false); matchers += 1; } catch { /* seguir */ }
+          }
         }
-      } else {
-        const names = prev.pbs?.length ? prev.pbs : ['default-matcher'];
-        for (const name of names) {
-          try { await setNotificationMatcherDisabled(auth, name, false); touched.push(name); } catch { /* seguir */ }
-        }
-      }
-      silenced.pbs = enable ? touched : [];
-      result.pbs = { ok: true, matchers: touched.length };
-    } catch (e) { result.pbs = { error: e.message }; }
+      } catch (e) { errors.push(`${host.name || host.id}: ${e.message}`); }
+    }
+    result.pbs = { ok: true, matchers, ...(errors.length ? { error: errors.join(' · ') } : {}) };
   } else result.pbs = { error: 'Sin host PBS configurado' };
 
   store.update({ silenceProxmox: enable, silencedMatchers: silenced });

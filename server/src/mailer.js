@@ -183,6 +183,122 @@ export function buildRestoreEmail(info, result, { sede } = {}) {
   return { subject, html, text };
 }
 
+const fmtBytes = (n) => {
+  if (n == null) return '—';
+  const u = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']; let i = 0; let v = Number(n);
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i += 1; }
+  return `${v >= 100 ? Math.round(v) : v.toFixed(1)} ${u[i]}`;
+};
+
+/** Envoltorio común de los emails de aviso/resumen. */
+function shell({ site, header, headerColor, headerBg, bodyHtml }) {
+  return `<!doctype html><html><body style="margin:0;background:#eef1f5;padding:24px;font-family:Segoe UI,Roboto,Helvetica,Arial,sans-serif">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center">
+    <table role="presentation" width="560" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;border:1px solid #e2e8f0">
+      <tr><td style="background:${headerBg};padding:18px 22px;border-bottom:3px solid ${headerColor}">
+        <div style="font-size:13px;color:${headerColor};font-weight:600;letter-spacing:.4px;text-transform:uppercase">${escapeHtml(site)}</div>
+        <div style="font-size:19px;color:#1b2430;font-weight:600;margin-top:4px">${header}</div>
+      </td></tr>
+      <tr><td style="padding:12px 22px 16px">${bodyHtml}</td></tr>
+      <tr><td style="padding:12px 22px;background:#f7f9fc;border-top:1px solid #eef1f5;color:#8b95a3;font-size:11.5px">
+        Enviado por ${escapeHtml(site)} · ${fmtDate(Math.floor(Date.now() / 1000))}
+      </td></tr>
+    </table>
+  </td></tr></table></body></html>`;
+}
+
+/** Aviso de máquinas fuera de RPO (sin copia reciente). */
+export function buildRpoEmail(machines, { sede, hours, names = {} } = {}) {
+  const site = sede || 'PBI';
+  const subject = `[${site}] ⏰ ${machines.length} máquina(s) sin copia reciente (> ${hours} h)`;
+  const rows = machines.map((m) => {
+    const name = names[m.id] ? ` · ${escapeHtml(names[m.id])}` : '';
+    return `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-size:13px"><b>${escapeHtml(m.type)} ${escapeHtml(m.id)}</b>${name}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-size:12.5px;color:#b62a25">${m.last ? fmtDate(m.last) : 'sin copias'}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-size:12px;color:#6b7685">${escapeHtml(m.host || '')}</td>
+    </tr>`;
+  }).join('');
+  const bodyHtml = `
+    <p style="font-size:13px;color:#56616f;margin:4px 0 10px">Estas máquinas llevan más de <b>${hours} horas</b> sin una copia de seguridad completada:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eef1f5;border-radius:8px;overflow:hidden">
+      <tr style="background:#f7f9fc">
+        <td style="padding:6px 10px;font-size:11px;color:#6b7685;text-transform:uppercase">Máquina</td>
+        <td style="padding:6px 10px;font-size:11px;color:#6b7685;text-transform:uppercase">Última copia</td>
+        <td style="padding:6px 10px;font-size:11px;color:#6b7685;text-transform:uppercase">Servidor</td>
+      </tr>${rows}
+    </table>
+    <p style="font-size:12px;color:#8b95a3;margin:10px 0 0">Revisa el trabajo de copia, el programador o la conectividad con PBS.</p>`;
+  const html = shell({ site, header: '⏰ Copias fuera de plazo (RPO)', headerColor: '#a06806', headerBg: '#fbf2dd', bodyHtml });
+  const text = [`${site} — Máquinas sin copia reciente (> ${hours} h):`,
+    ...machines.map((m) => ` - ${m.type} ${m.id}${names[m.id] ? ` (${names[m.id]})` : ''}: última ${m.last ? fmtDate(m.last) : 'nunca'} [${m.host || ''}]`)].join('\n');
+  return { subject, html, text };
+}
+
+/** Aviso de datastores por encima del umbral de ocupación. */
+export function buildStorageEmail(stores, { sede, percent } = {}) {
+  const site = sede || 'PBI';
+  const subject = `[${site}] 💾 ${stores.length} datastore(s) por encima del ${percent}% de ocupación`;
+  const rows = stores.map((s) => `<tr>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-size:13px"><b>${escapeHtml(s.store)}</b></td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-size:12.5px;color:${s.pct >= 95 ? '#b62a25' : '#a06806'};font-family:Consolas,monospace"><b>${s.pct}%</b> · ${fmtBytes(s.used)} / ${fmtBytes(s.total)}</td>
+      <td style="padding:7px 10px;border-bottom:1px solid #eef1f5;font-size:12px;color:#6b7685">${escapeHtml(s.host || '')}</td>
+    </tr>`).join('');
+  const bodyHtml = `
+    <p style="font-size:13px;color:#56616f;margin:4px 0 10px">Ocupación por encima del umbral configurado (<b>${percent}%</b>). Si un datastore se llena, las copias fallarán:</p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #eef1f5;border-radius:8px;overflow:hidden">
+      <tr style="background:#f7f9fc">
+        <td style="padding:6px 10px;font-size:11px;color:#6b7685;text-transform:uppercase">Datastore</td>
+        <td style="padding:6px 10px;font-size:11px;color:#6b7685;text-transform:uppercase">Uso</td>
+        <td style="padding:6px 10px;font-size:11px;color:#6b7685;text-transform:uppercase">Servidor</td>
+      </tr>${rows}
+    </table>
+    <p style="font-size:12px;color:#8b95a3;margin:10px 0 0">Considera ampliar el almacenamiento, ajustar la retención (prune) o ejecutar Garbage Collection.</p>`;
+  const html = shell({ site, header: '💾 Almacenamiento al límite', headerColor: '#a06806', headerBg: '#fbf2dd', bodyHtml });
+  const text = [`${site} — Datastores por encima del ${percent}%:`,
+    ...stores.map((s) => ` - ${s.store}: ${s.pct}% (${fmtBytes(s.used)} / ${fmtBytes(s.total)}) [${s.host || ''}]`)].join('\n');
+  return { subject, html, text };
+}
+
+/** Resumen diario: estado de las últimas 24 h en todos los servidores. */
+export function buildDigestEmail({ sections = [], unprotected = [], names = {} }, { sede } = {}) {
+  const site = sede || 'PBI';
+  const totalFail = sections.reduce((a, s) => a + s.fail, 0);
+  const totalRpo = sections.reduce((a, s) => a + (s.outOfRpo?.length || 0), 0);
+  const okAll = totalFail === 0 && totalRpo === 0 && unprotected.length === 0;
+  const today = new Date().toLocaleDateString('es-ES');
+  const subject = `[${site}] ${okAll ? '✅' : '⚠️'} Resumen diario de copias — ${today}`;
+
+  const secHtml = sections.map((s) => {
+    const failRows = (s.failures || []).map((f) => `<div style="font-size:12px;color:#b62a25;padding:2px 0">✕ ${escapeHtml(f.type)} · ${escapeHtml(f.id || '—')} — <span style="font-family:Consolas,monospace">${escapeHtml((f.status || '').slice(0, 60))}</span></div>`).join('');
+    const rpoRows = (s.outOfRpo || []).map((m) => `<div style="font-size:12px;color:#a06806;padding:2px 0">⏰ ${escapeHtml(m.type)} ${escapeHtml(m.id)}${names[m.id] ? ` · ${escapeHtml(names[m.id])}` : ''} — última: ${m.last ? fmtDate(m.last) : 'nunca'}</div>`).join('');
+    const storage = (s.storage || []).map((d) => `<span style="font-size:12px;color:${d.pct >= 90 ? '#b62a25' : d.pct >= 75 ? '#a06806' : '#56616f'};padding-right:12px">${escapeHtml(d.store)}: <b>${d.pct}%</b></span>`).join('');
+    return `<div style="border:1px solid #eef1f5;border-radius:8px;padding:10px 14px;margin-bottom:10px">
+      <div style="font-size:13px;font-weight:600;color:#1b2430;margin-bottom:4px">${escapeHtml(s.host)}</div>
+      <div style="font-size:12.5px;color:#56616f">Copias 24 h: <b style="color:#157a42">${s.ok} OK</b>${s.fail ? ` · <b style="color:#b62a25">${s.fail} con fallo</b>` : ''}</div>
+      ${failRows}${rpoRows}
+      ${storage ? `<div style="margin-top:5px">${storage}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const unpHtml = unprotected.length
+    ? `<div style="background:#fbf2dd;border:1px solid #f0d9a8;border-radius:8px;padding:9px 13px;font-size:12.5px;color:#a06806;margin-bottom:10px">
+        ⚠ <b>${unprotected.length} máquina(s) sin proteger</b> (sin ninguna copia en PBS): ${unprotected.slice(0, 10).map((g) => `${escapeHtml(String(g.vmid))}${g.name ? ` (${escapeHtml(g.name)})` : ''}`).join(' · ')}${unprotected.length > 10 ? ' …' : ''}
+      </div>` : '';
+
+  const bodyHtml = `${okAll ? '<p style="font-size:13px;color:#157a42;font-weight:600;margin:4px 0 10px">✓ Todo en orden: sin fallos, sin máquinas fuera de plazo.</p>' : ''}${unpHtml}${secHtml}`;
+  const html = shell({
+    site, header: `📋 Resumen diario — ${today}`,
+    headerColor: okAll ? '#157a42' : '#a06806', headerBg: okAll ? '#e6f4ec' : '#fbf2dd', bodyHtml,
+  });
+  const text = [
+    `${site} — Resumen diario ${today}`,
+    ...sections.map((s) => `${s.host}: ${s.ok} OK, ${s.fail} fallo(s), ${s.outOfRpo?.length || 0} fuera de RPO`),
+    unprotected.length ? `Sin proteger: ${unprotected.map((g) => g.vmid).join(', ')}` : '',
+  ].filter(Boolean).join('\n');
+  return { subject, html, text };
+}
+
 /** Email de prueba. */
 export function buildTestEmail({ hostName, sede } = {}) {
   const site = sede || 'PBI';
