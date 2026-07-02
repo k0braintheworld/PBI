@@ -29,14 +29,24 @@ function ensureFile() {
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify({ pve: [] }, null, 2));
 }
+// Caché por mtime (ver hostStore): evita releer/descifrar en cada petición.
+let _cache = null;
+let _cacheMtime = -1;
 function readAll() {
   ensureFile();
-  try { return (JSON.parse(fs.readFileSync(FILE, 'utf8')).pve || []).map(decPve); } catch { return []; }
+  try {
+    const m = fs.statSync(FILE).mtimeMs;
+    if (_cache && m === _cacheMtime) return _cache;
+    _cache = (JSON.parse(fs.readFileSync(FILE, 'utf8')).pve || []).map(decPve);
+    _cacheMtime = m;
+    return _cache;
+  } catch { return _cache || []; }
 }
 function writeAll(list) {
   ensureFile();
   fs.writeFileSync(FILE, JSON.stringify({ pve: list.map(encPve) }, null, 2), { mode: 0o600 });
   try { fs.chmodSync(FILE, 0o600); } catch { /* ignore */ }
+  _cacheMtime = -1; // forzar relectura
 }
 
 /** Re-guarda cifrando cualquier secreto aún en texto plano (migración). */

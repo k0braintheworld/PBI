@@ -142,13 +142,18 @@ export async function setNotificationMatcherDisabled(auth, name, disabled) {
 export async function getDashboard(auth) {
   const datastores = await listDatastores(auth);
 
-  const perDatastore = [];
-  const allSnaps = [];
-  for (const ds of datastores) {
+  // Los datastores se consultan en paralelo (antes era secuencial).
+  const dsResults = await Promise.all(datastores.map(async (ds) => {
     const [status, snaps] = await Promise.all([
       getDatastoreStatus(auth, ds.store).catch(() => null),
       listSnapshots(auth, ds.store).catch(() => []),
     ]);
+    return { ds, status, snaps };
+  }));
+
+  const perDatastore = [];
+  const allSnaps = [];
+  for (const { ds, status, snaps } of dsResults) {
     perDatastore.push({
       store: ds.store,
       comment: ds.comment || '',

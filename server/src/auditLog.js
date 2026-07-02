@@ -6,13 +6,18 @@ const AUDIT_FILE = () => path.join(config.dataDir, 'audit.jsonl');
 const CFG_FILE = () => path.join(config.dataDir, 'audit-config.json');
 const DEFAULTS = { maxSizeMb: 10, maxFiles: 5 };
 
+let _cfgCache = null; // la config de auditoría se lee en cada audit(); cacheamos
 export function getAuditConfig() {
-  try { return { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CFG_FILE(), 'utf8')) }; }
-  catch { return { ...DEFAULTS }; }
+  if (_cfgCache) return _cfgCache;
+  try { _cfgCache = { ...DEFAULTS, ...JSON.parse(fs.readFileSync(CFG_FILE(), 'utf8')) }; }
+  catch { _cfgCache = { ...DEFAULTS }; }
+  return _cfgCache;
 }
 
 export function saveAuditConfig({ maxSizeMb, maxFiles }) {
-  fs.writeFileSync(CFG_FILE(), JSON.stringify({ maxSizeMb: Number(maxSizeMb), maxFiles: Number(maxFiles) }, null, 2), { mode: 0o600 });
+  const out = { maxSizeMb: Number(maxSizeMb), maxFiles: Number(maxFiles) };
+  fs.writeFileSync(CFG_FILE(), JSON.stringify(out, null, 2), { mode: 0o600 });
+  _cfgCache = { ...DEFAULTS, ...out };
 }
 
 function rotate(file, maxFiles) {

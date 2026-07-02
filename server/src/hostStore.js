@@ -29,12 +29,21 @@ function ensureFile() {
   if (!fs.existsSync(FILE)) fs.writeFileSync(FILE, JSON.stringify({ hosts: [] }, null, 2));
 }
 
+// Caché en memoria invalidada por la marca de tiempo del fichero: evita releer y
+// descifrar en cada petición (resolveAuth corre por request). Cualquier escritura
+// cambia el mtime → la próxima lectura refresca sola.
+let _cache = null;
+let _cacheMtime = -1;
 function readAll() {
   ensureFile();
   try {
-    return (JSON.parse(fs.readFileSync(FILE, 'utf8')).hosts || []).map(decHost);
+    const m = fs.statSync(FILE).mtimeMs;
+    if (_cache && m === _cacheMtime) return _cache;
+    _cache = (JSON.parse(fs.readFileSync(FILE, 'utf8')).hosts || []).map(decHost);
+    _cacheMtime = m;
+    return _cache;
   } catch {
-    return [];
+    return _cache || [];
   }
 }
 
@@ -42,6 +51,7 @@ function writeAll(hosts) {
   ensureFile();
   fs.writeFileSync(FILE, JSON.stringify({ hosts: hosts.map(encHost) }, null, 2), { mode: 0o600 });
   try { fs.chmodSync(FILE, 0o600); } catch { /* ignore */ }
+  _cacheMtime = -1; // forzar relectura (robusto ante mtime de 1s de resolución)
 }
 
 /** Re-guarda cifrando cualquier secreto que aún esté en texto plano (migración). */
