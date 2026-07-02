@@ -420,7 +420,7 @@ function FileRestore({ pveId, node, storage, point }) {
       .finally(() => setLoading(false));
   }, [pveId, node, storage, point.volid, cur]);
 
-  const enter = (e) => setStack((s) => [...s, { name: e.text, filepath: e.filepath }]);
+  const enter = (e) => setStack((s) => [...s, { name: e.text, filepath: e.filepath, type: e.type }]);
   const goTo = (i) => setStack((s) => s.slice(0, i + 1));
   const iconFor = (e) => (e.type === 'v' ? Icon.hdd : e.type === 'd' ? Icon.folder : Icon.file);
   const navigable = (e) => e.leaf === 0 || e.leaf === false || e.type === 'd' || e.type === 'v';
@@ -471,7 +471,18 @@ function FileRestore({ pveId, node, storage, point }) {
                 </td>
               </tr>
             ))}
-            {entries && !entries.length && <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 22 }}>{t('Carpeta vacía')}</td></tr>}
+            {entries && !entries.length && (
+              stack[stack.length - 1].type === 'v' ? (
+                <tr><td colSpan={4} style={{ padding: 18 }}>
+                  <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '10px 14px', borderRadius: 8, fontSize: 12.5 }}>
+                    <b>{t('PVE no ha podido leer el contenido de este disco.')}</b>{' '}
+                    {t('El backup está bien, pero el explorador de ficheros de Proxmox no reconoce su sistema de ficheros. Causas habituales: NTFS «sucia» por el arranque rápido de Windows (desactívalo con «powercfg /h off» y apaga por completo antes de la siguiente copia), disco cifrado (BitLocker/LUKS) o discos dinámicos/LVM. Para recuperar datos de esta copia usa «VM completa».')}
+                  </div>
+                </td></tr>
+              ) : (
+                <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 22 }}>{t('Carpeta vacía')}</td></tr>
+              )
+            )}
           </tbody>
         </table>
       )}

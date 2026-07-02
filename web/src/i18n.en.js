@@ -521,6 +521,9 @@ export const EN = {
   'raíz': 'root',
   'Descargar': 'Download',
   'Carpeta vacía': 'Empty folder',
+  'PVE no ha podido leer el contenido de este disco.': 'PVE could not read the contents of this disk.',
+  'El backup está bien, pero el explorador de ficheros de Proxmox no reconoce su sistema de ficheros. Causas habituales: NTFS «sucia» por el arranque rápido de Windows (desactívalo con «powercfg /h off» y apaga por completo antes de la siguiente copia), disco cifrado (BitLocker/LUKS) o discos dinámicos/LVM. Para recuperar datos de esta copia usa «VM completa».':
+    'The backup itself is fine, but the Proxmox file explorer cannot recognise its filesystem. Common causes: a "dirty" NTFS due to Windows Fast Startup (disable it with "powercfg /h off" and do a full shutdown before the next backup), an encrypted disk (BitLocker/LUKS) or dynamic disks/LVM. To recover data from this backup use "Full VM".',
 
   // --- Configuración ---
   'Proxmox VE (recuperación)': 'Proxmox VE (recovery)',
