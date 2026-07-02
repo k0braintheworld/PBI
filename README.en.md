@@ -92,8 +92,10 @@ scheduled). The email includes:
 - **Encryption status**: "Encrypted: Yes 🔒 / No" row when the log indicates the backup was encrypted.
 
 Notifications are **enabled by default** once SMTP is configured (host + recipient).
-Option to **silence Proxmox's native notifications** (PVE and PBS) to avoid
-duplicate emails. SMTP configuration with a **test email**.
+Option to **silence all of Proxmox's native notifications** (PVE and PBS) so only PBI
+notifies: it disables the notification *matchers* on both sides (backup, verify, prune,
+GC, sync, replication…), respecting any you had already disabled and restoring exactly
+the same ones when reverting. SMTP configuration with a **test email**.
 
 ### Self-update from the panel
 The **Updates** button in the sidebar checks GitHub Releases and shows whether a newer

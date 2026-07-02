@@ -22,6 +22,7 @@ const DEFAULTS = {
   silenceProxmox: false,
   types: ['backup', 'verify', 'prune', 'sync', 'garbage_collection'],
   smtp: { host: '', port: 587, secure: false, user: '', pass: '', from: '', to: '' },
+  silencedMatchers: { pbs: [], pve: [] },
   state: { lastSeen: null },
 };
 

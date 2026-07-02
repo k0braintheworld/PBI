@@ -121,6 +121,11 @@ export async function runGarbageCollection(auth, store) {
   return pbsCall(auth, { method: 'POST', path: `/admin/datastore/${encodeURIComponent(store)}/gc` });
 }
 
+/** Lista los matchers del sistema de notificaciones de PBS. */
+export async function listNotificationMatchers(auth) {
+  return pbsCall(auth, { path: '/config/notifications/matchers' });
+}
+
 /**
  * Habilita/deshabilita un matcher de notificaciones de PBS (para silenciar
  * los emails nativos y evitar duplicados con los de PBI). Reversible.

@@ -124,6 +124,17 @@ export async function pveSilenceBackupJobs(pve, silence) {
   return { total: jobs.length, changed };
 }
 
+/** Matchers del sistema de notificaciones de PVE (Datacenter → Notifications; PVE 8.1+). */
+export const pveListNotificationMatchers = (pve) =>
+  pveCall(pve, { path: '/cluster/notifications/matchers' });
+
+export const pveSetNotificationMatcherDisabled = (pve, name, disabled) =>
+  pveCall(pve, {
+    method: 'PUT',
+    path: `/cluster/notifications/matchers/${encodeURIComponent(name)}`,
+    body: disabled ? { disable: 1 } : { delete: 'disable' },
+  });
+
 // El nodo va embebido en el UPID: UPID:<node>:<pid>:...
 const nodeFromUpid = (upid) => (upid || '').split(':')[1] || '';
 

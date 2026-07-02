@@ -95,8 +95,11 @@ una tarea (tipos y éxito/fallo configurables) y cuando termina una **restauraci
 - **Estado de cifrado**: fila «Cifrado: Sí 🔒 / No» cuando el log indica que el backup se cifró.
 
 Las notificaciones se **activan por defecto** al configurar el SMTP (host + destinatario).
-Opción para **silenciar las notificaciones nativas de Proxmox** (PVE y PBS) y evitar
-emails duplicados. Configuración SMTP con **email de prueba**.
+Opción para **silenciar todas las notificaciones nativas de Proxmox** (PVE y PBS) y que
+solo PBI notifique: desactiva los *matchers* de notificación de ambos lados (copia,
+verificación, prune, GC, sync, replicación…), respetando los que ya tuvieras
+desactivados y restaurando exactamente los mismos al revertir. Configuración SMTP con
+**email de prueba**.
 
 ### Auto-actualización desde el panel
 Botón **Actualizaciones** en el sidebar que consulta las GitHub Releases y muestra si hay

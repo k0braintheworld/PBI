@@ -461,7 +461,7 @@ function NotifySettings() {
         <label style={{ display: 'flex', gap: 9, alignItems: 'flex-start', margin: '2px 0 10px' }}>
           <input type="checkbox" checked={form.silenceProxmox} onChange={(e) => set('silenceProxmox', e.target.checked)} style={{ marginTop: 3 }} />
           <span className="muted">
-            {tr('Silenciar las notificaciones ')}<b>{tr('nativas de Proxmox')}</b>{tr(' para que PBI sea la única fuente de emails. En ')}<b>Proxmox VE</b>{tr(' pone en silencio los trabajos de copia; en ')}<b>PBS</b>{tr(' deshabilita su ')}<i>matcher</i>{tr(' de email (esto silencia ')}<b>{tr('todos')}</b>{tr(' los emails que origina PBS, no solo los de tareas). Reversible al desmarcar y volver a aplicar.')}
+            {tr('Silenciar ')}<b>{tr('todas las notificaciones nativas de Proxmox')}</b>{tr(' para que PBI sea la única fuente de emails. Desactiva ')}<b>{tr('todos los avisos')}</b>{tr(' de trabajos en ambos lados —copia, verificación, prune, GC, sync, replicación…— deshabilitando los ')}<i>matchers</i>{tr(' de notificación de ')}<b>Proxmox VE</b>{tr(' y de ')}<b>PBS</b>{tr(' (se respetan los que ya tuvieras desactivados y se restauran exactamente los mismos al desmarcar). Reversible.')}
           </span>
         </label>
 
@@ -470,8 +470,8 @@ function NotifySettings() {
             ? <div className="error-box">✕ {silence.error}</div>
             : <div className="banner">
                 {silence.enable ? tr('Silenciado aplicado') : tr('Notificaciones de Proxmox restauradas')} ·
-                PVE: {silence.pve?.error ? `${tr('error')} (${silence.pve.error})` : `${silence.pve?.changed ?? 0}/${silence.pve?.total ?? 0} ${tr('trabajos')}`} ·
-                PBS: {silence.pbs?.error ? `${tr('error')} (${silence.pbs.error})` : 'OK'}
+                PVE: {silence.pve?.error ? `${tr('error')} (${silence.pve.error})` : `${silence.pve?.changed ?? 0}/${silence.pve?.total ?? 0} ${tr('trabajos')} · ${silence.pve?.matchers ?? 0} ${tr('aviso(s)')}${silence.pve?.matchersSupported === false ? ` (${tr('sin API de avisos')})` : ''}`} ·
+                PBS: {silence.pbs?.error ? `${tr('error')} (${silence.pbs.error})` : `${silence.pbs?.matchers ?? 0} ${tr('aviso(s)')}`}
               </div>
         )}
 
