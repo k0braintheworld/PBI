@@ -180,12 +180,19 @@ export async function collectSiteStatus() {
 
 // --- Envío --------------------------------------------------------------------
 
+const isLocalHost = (h) => h === 'localhost' || h === '127.0.0.1' || h === '::1';
+
 function postStatus(cfg, message) {
   return new Promise((resolve, reject) => {
     let target;
     try { target = new URL('/api/ingest', cfg.url); } catch { return reject(new Error('URL del central inválida')); }
     const body = Buffer.from(JSON.stringify(message));
     const isHttps = target.protocol === 'https:';
+    // No enviar el estado en claro a un host remoto: si no es https y no es local
+    // (desarrollo), se rechaza. El tráfico PBI↔Central debe ir siempre cifrado.
+    if (!isHttps && !isLocalHost(target.hostname)) {
+      return reject(new Error('El central debe usar https:// — no se envía el estado sin cifrar a un host remoto'));
+    }
     const opts = {
       method: 'POST',
       hostname: target.hostname,
@@ -195,6 +202,7 @@ function postStatus(cfg, message) {
       timeout: 15000,
     };
     if (isHttps) {
+      opts.minVersion = 'TLSv1.2'; // suelo mínimo; entre dos Node 22 se usa TLS 1.3
       // mTLS: certificado cliente de la sede. Verificación del servidor:
       //  - con caPath → se fija ESE certificado (pinning). Se sigue exigiendo que el
       //    servidor lo presente (rejectUnauthorized por defecto), pero se omite la
