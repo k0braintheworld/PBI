@@ -6,6 +6,17 @@
  * Si una clave no existe aquí, se muestra el español de origen.
  */
 export const EN = {
+  'Tras borrar copias, ejecuta el Garbage Collection del datastore para que PBS reclame el espacio físico de los datos ya no referenciados. El GC también es lo que calcula el factor de deduplicación que ves en el panel.': 'After deleting backups, run the datastore Garbage Collection so PBS reclaims the physical space of no-longer-referenced data. The GC is also what computes the deduplication factor shown on the dashboard.',
+  'Desactivado': 'Disabled',
+  'Diario (00:00)': 'Daily (00:00)',
+  'Diario 03:00': 'Daily 03:00',
+  'Semanal (dom 03:00)': 'Weekly (Sun 03:00)',
+  'Personalizado…': 'Custom…',
+  'GC programado': 'GC scheduled',
+  'GC no programado': 'GC not scheduled',
+  'Calendar-event de systemd (p.ej. daily, weekly, sun 03:00)': 'systemd calendar event (e.g. daily, weekly, sun 03:00)',
+  'Programar GC': 'Schedule GC',
+
   // --- General / común ---
   'Cargando…': 'Loading…',
   'Guardar': 'Save',

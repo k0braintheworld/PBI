@@ -123,6 +123,21 @@ export async function runGarbageCollection(auth, store) {
   return pbsCall(auth, { method: 'POST', path: `/admin/datastore/${encodeURIComponent(store)}/gc` });
 }
 
+/** Configuración del datastore (incluye gc-schedule). */
+export async function getDatastoreConfig(auth, store) {
+  return pbsCall(auth, { path: `/config/datastore/${encodeURIComponent(store)}` });
+}
+
+/**
+ * Programa (o desactiva) el Garbage Collection del datastore. `schedule` es un
+ * calendar-event de systemd (p.ej. 'daily', 'weekly', 'sun 03:00'); vacío = desactivar.
+ */
+export async function setDatastoreGcSchedule(auth, store, schedule) {
+  const s = String(schedule || '').trim();
+  const body = s ? { 'gc-schedule': s } : { delete: 'gc-schedule' };
+  return pbsCall(auth, { method: 'PUT', path: `/config/datastore/${encodeURIComponent(store)}`, body });
+}
+
 /** Lista los matchers del sistema de notificaciones de PBS. */
 export async function listNotificationMatchers(auth) {
   return pbsCall(auth, { path: '/config/notifications/matchers' });

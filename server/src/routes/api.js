@@ -184,6 +184,22 @@ apiRouter.post('/cleanup/gc', requireOperator, wrap(async (req, res) => {
   res.json({ upid });
 }));
 
+// Programación del GC (gc-schedule del datastore)
+apiRouter.get('/cleanup/gc-schedule', wrap(async (req, res) => {
+  const store = req.query.store;
+  if (!store) return res.status(400).json({ error: 'Falta store' });
+  const cfg = await pbs.getDatastoreConfig(req.auth, store).catch(() => ({}));
+  res.json({ store, schedule: cfg?.['gc-schedule'] || '' });
+}));
+
+apiRouter.put('/cleanup/gc-schedule', requireOperator, wrap(async (req, res) => {
+  const { store, schedule } = req.body || {};
+  if (!store) return res.status(400).json({ error: 'Falta store' });
+  await pbs.setDatastoreGcSchedule(req.auth, store, schedule);
+  audit(req, 'cleanup.gc_schedule', store, 'ok', schedule ? `Programado: ${schedule}` : 'Desactivado');
+  res.json({ store, schedule: String(schedule || '').trim() });
+}));
+
 // --- Informes --------------------------------------------------------------
 
 apiRouter.use('/reports', reportsRouter);

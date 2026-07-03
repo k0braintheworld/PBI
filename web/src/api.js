@@ -157,6 +157,8 @@ export const api = {
   cleanupDeleteGroup: (body) => req('POST', '/cleanup/delete-group', body),
   cleanupDeleteSnapshot: (body) => req('POST', '/cleanup/delete-snapshot', body),
   cleanupGc: (store) => req('POST', '/cleanup/gc', { store }),
+  gcScheduleGet: (store) => req('GET', `/cleanup/gc-schedule?store=${encodeURIComponent(store)}`),
+  gcScheduleSet: (store, schedule) => req('PUT', '/cleanup/gc-schedule', { store, schedule }),
 
   // Notificaciones
   notifyGet: () => req('GET', '/notify'),

@@ -39,6 +39,7 @@ const ACTION_LABELS = {
   'cleanup.delete_group': 'Borrar grupo de copias',
   'cleanup.delete_snapshot': 'Borrar snapshot',
   'cleanup.gc': 'Garbage Collection',
+  'cleanup.gc_schedule': 'Programar GC',
   'notify.update': 'Config. notificaciones',
   'notify.silence_proxmox': 'Silenciar avisos de Proxmox',
   'report.update': 'Config. informes',

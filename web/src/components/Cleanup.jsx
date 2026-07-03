@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { api, fmtBytes, fmtDate, fmtAgo } from '../api.js';
 import { useAsync, Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
@@ -120,10 +120,8 @@ export default function Cleanup() {
 
       <div className="card card-pad" style={{ marginTop: 16 }}>
         <h3 style={{ marginTop: 0 }}>{t('Liberar espacio en disco (Garbage Collection)')}</h3>
-        <p className="muted" style={{ marginTop: -4 }}>{t('Tras borrar copias, ejecuta el Garbage Collection del datastore para que PBS reclame el espacio físico de los datos ya no referenciados.')}</p>
-        <div className="btn-row">
-          {stores.map((s) => <button key={s} className="btn" onClick={() => setGcConfirm(s)}><Icon.broom width={14} height={14} /> {t('Liberar espacio')} · {s}</button>)}
-        </div>
+        <p className="muted" style={{ marginTop: -4 }}>{t('Tras borrar copias, ejecuta el Garbage Collection del datastore para que PBS reclame el espacio físico de los datos ya no referenciados. El GC también es lo que calcula el factor de deduplicación que ves en el panel.')}</p>
+        {stores.map((s) => <GcStore key={s} store={s} onRun={() => setGcConfirm(s)} t={t} />)}
       </div>
 
       {confirm && (
@@ -170,6 +168,61 @@ export default function Cleanup() {
       )}
 
       {viewGroup && <SnapshotModal group={viewGroup} onClose={() => setViewGroup(null)} onChanged={() => data.reload()} />}
+    </div>
+  );
+}
+
+/** Fila por datastore: estado del GC programado + editor de programación + ejecutar. */
+function GcStore({ store, onRun, t }) {
+  const [schedule, setSchedule] = useState(null); // guardado en PBS
+  const [val, setVal] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [saved, setSaved] = useState('');
+
+  useEffect(() => {
+    api.gcScheduleGet(store)
+      .then((r) => { setSchedule(r.schedule); setVal(r.schedule); })
+      .catch(() => setSchedule(''));
+  }, [store]);
+
+  async function save() {
+    setBusy(true); setSaved('');
+    try {
+      const r = await api.gcScheduleSet(store, val.trim());
+      setSchedule(r.schedule); setVal(r.schedule);
+      setSaved(t('Guardado')); setTimeout(() => setSaved(''), 1800);
+    } catch (e) { setSaved(e.message); }
+    finally { setBusy(false); }
+  }
+
+  const PRESETS = [
+    ['', t('Desactivado')],
+    ['daily', t('Diario (00:00)')],
+    ['*-*-* 03:00', t('Diario 03:00')],
+    ['sun 03:00', t('Semanal (dom 03:00)')],
+  ];
+  const isPreset = PRESETS.some((p) => p[0] === val);
+
+  return (
+    <div className="flex-between" style={{ padding: '10px 0', borderTop: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
+      <div>
+        <b className="mono">{store}</b>
+        <div className="muted" style={{ fontSize: 11.5 }}>
+          {schedule === null ? '…' : schedule ? <>{t('GC programado')}: <b className="mono">{schedule}</b></> : t('GC no programado')}
+        </div>
+      </div>
+      <div className="btn-row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <select className="input" style={{ width: 170 }} value={isPreset ? val : '__custom'}
+          onChange={(e) => { if (e.target.value !== '__custom') setVal(e.target.value); }}>
+          {PRESETS.map(([v, l]) => <option key={v || 'off'} value={v}>{l}</option>)}
+          <option value="__custom">{t('Personalizado…')}</option>
+        </select>
+        <input className="input" style={{ width: 140 }} placeholder="mon..fri 02:30" value={val}
+          onChange={(e) => setVal(e.target.value)} title={t('Calendar-event de systemd (p.ej. daily, weekly, sun 03:00)')} />
+        <button className="btn sm" onClick={save} disabled={busy || val === (schedule ?? '')}>{busy ? t('Guardando…') : t('Guardar')}</button>
+        <button className="btn sm ghost" onClick={onRun}><Icon.broom width={13} height={13} /> {t('Ejecutar ahora')}</button>
+        {saved && <span className="muted" style={{ fontSize: 11.5 }}>{saved}</span>}
+      </div>
     </div>
   );
 }
