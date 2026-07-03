@@ -47,6 +47,9 @@ export const api = {
   configImport: (body) => req('POST', '/config-backup/import', body),
   setSecurity: (body) => req('PUT', '/security', body),
   // PBI Central (emisor multi-sede)
+  centralState: () => req('GET', '/central/state'),
+  centralUnlock: (password) => req('POST', '/central/unlock', { password }),
+  centralLock: () => req('POST', '/central/lock'),
   centralGet: () => req('GET', '/central'),
   centralSave: (body) => req('PUT', '/central', body),
   centralTest: () => req('POST', '/central/test'),

@@ -34,6 +34,64 @@ export default function Settings({ onHostsChanged, user }) {
 /* ===================== PBI Central (emisor multi-sede) ===================== */
 function CentralSettings() {
   const tr = useT();
+  const [state, setState] = useState(null); // { unlocked, unlockConfigured }
+  const [pass, setPass] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  useEffect(() => { api.centralState().then(setState).catch(() => setState(false)); }, []);
+
+  if (state === null) return <Loading />;
+  if (state === false) return <ErrorBox error={tr('No se pudo cargar el estado')} />;
+
+  async function unlock(e) {
+    e.preventDefault();
+    setBusy(true); setErr(null);
+    try { await api.centralUnlock(pass); setPass(''); setState({ ...state, unlocked: true }); }
+    catch (e2) { setErr(e2.message); }
+    finally { setBusy(false); }
+  }
+  async function relock() {
+    if (!(await confirmDialog({ message: tr('¿Bloquear PBI Central? El emisor dejará de enviar y habrá que volver a introducir la contraseña.'), confirmLabel: tr('Bloquear') }))) return;
+    try { await api.centralLock(); setState({ ...state, unlocked: false }); } catch { /* ignore */ }
+  }
+
+  if (!state.unlocked) {
+    return (
+      <div className="grid" style={{ gap: 16, maxWidth: 520 }}>
+        <div className="card card-pad">
+          <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Icon.lock width={16} height={16} /> PBI Central
+            <span className="badge muted" style={{ marginLeft: 4 }}>{tr('bloqueado')}</span>
+          </h3>
+          <p className="muted" style={{ fontSize: 13 }}>
+            {tr('Función para reportar el estado de esta sede a un panel central multi-sede. Está desactivada y bloqueada por defecto. Introduce la contraseña de desbloqueo para habilitarla.')}
+          </p>
+          {!state.unlockConfigured ? (
+            <div className="error-box">{tr('Esta versión de PBI no incluye contraseña de desbloqueo para esta función.')}</div>
+          ) : (
+            <form onSubmit={unlock}>
+              <div className="field">
+                <label>{tr('Contraseña de desbloqueo')}</label>
+                <input className="input" type="password" value={pass} autoComplete="off"
+                  onChange={(e) => setPass(e.target.value)} autoFocus />
+              </div>
+              {err && <div className="error-box">✕ {err}</div>}
+              <button className="btn primary" disabled={busy || !pass} style={{ marginTop: 4 }}>
+                {busy ? tr('Comprobando…') : tr('Desbloquear')}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  return <CentralConfig onLock={relock} />;
+}
+
+function CentralConfig({ onLock }) {
+  const tr = useT();
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -72,7 +130,12 @@ function CentralSettings() {
     <div className="grid" style={{ gap: 16, maxWidth: 720 }}>
       <div className="card card-pad">
         <div className="flex-between">
-          <h3 style={{ margin: 0 }}>{tr('Reportar a PBI Central')}</h3>
+          <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            {tr('Reportar a PBI Central')}
+            <button className="btn sm ghost" title={tr('Bloquear de nuevo')} onClick={onLock} style={{ padding: '2px 8px' }}>
+              <Icon.lock width={12} height={12} /> {tr('bloquear')}
+            </button>
+          </h3>
           <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input type="checkbox" checked={!!form.enabled} onChange={(e) => set('enabled', e.target.checked)} />
             <span className="muted">{tr('Activado')}</span>

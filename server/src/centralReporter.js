@@ -9,6 +9,7 @@ import { getDefaultPve } from './pveStore.js';
 import { pveGuests } from './pveService.js';
 import { getRaw as getReportCfg } from './reportStore.js';
 import * as centralStore from './centralStore.js';
+import { isCentralUnlocked } from './featureStore.js';
 import { APP_VERSION } from '../../web/src/version.js';
 
 /**
@@ -228,6 +229,7 @@ export async function sendNow() {
 
 async function tick() {
   if (running) return;
+  if (!isCentralUnlocked()) return; // feature bloqueada
   const cfg = centralStore.getRaw();
   if (!cfg.enabled || !cfg.url || !cfg.siteId) return;
   running = true;

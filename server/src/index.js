@@ -12,6 +12,8 @@ import { accountRouter } from './routes/account.js';
 import { securityRouter } from './routes/security.js';
 import { configBackupRouter } from './routes/configBackup.js';
 import { centralRouter } from './routes/central.js';
+import { isCentralUnlocked } from './featureStore.js';
+import { isUnlockConfigured } from './centralUnlock.js';
 import { requireAuth, requireAdmin, requireOperator } from './session.js';
 import { hostsRouter } from './routes/hosts.js';
 import { pveRouter } from './routes/pve.js';
@@ -95,6 +97,11 @@ app.use('/api/auth', panelAuthRouter);
 
 // A partir de aquí, todo /api exige sesión válida
 app.use('/api', requireAuth);
+
+// Estado de features desbloqueables (para que la GUI muestre bloqueado/activo).
+app.get('/api/features', (_req, res) => {
+  res.json({ central: { unlocked: isCentralUnlocked(), unlockConfigured: isUnlockConfigured() } });
+});
 
 app.use('/api/account', accountRouter);
 app.use('/api/security', securityRouter);

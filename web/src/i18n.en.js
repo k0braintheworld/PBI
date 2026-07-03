@@ -620,6 +620,21 @@ export const EN = {
   'Restaurar configuración': 'Restore configuration',
   'Config. PBI Central': 'PBI Central settings',
   'Prueba de envío a Central': 'Central push test',
+  'Desbloquear PBI Central': 'Unlock PBI Central',
+  'Bloquear PBI Central': 'Lock PBI Central',
+  'No se pudo cargar el estado': 'Could not load the state',
+  'bloqueado': 'locked',
+  'Función para reportar el estado de esta sede a un panel central multi-sede. Está desactivada y bloqueada por defecto. Introduce la contraseña de desbloqueo para habilitarla.':
+    'Feature to report this site\'s status to a central multi-site panel. Disabled and locked by default. Enter the unlock password to enable it.',
+  'Esta versión de PBI no incluye contraseña de desbloqueo para esta función.':
+    'This PBI build has no unlock password configured for this feature.',
+  'Contraseña de desbloqueo': 'Unlock password',
+  'Comprobando…': 'Checking…',
+  'Desbloquear': 'Unlock',
+  '¿Bloquear PBI Central? El emisor dejará de enviar y habrá que volver a introducir la contraseña.':
+    'Lock PBI Central? The emitter will stop sending and the password will be required again.',
+  'Bloquear': 'Lock',
+  'bloquear': 'lock',
   'Reportar a PBI Central': 'Report to PBI Central',
   'Esta sede enviará su estado agregado (copias, RPO, ocupación, sin proteger) a un panel central. Envío saliente por mTLS; nunca se envían credenciales ni contenido de backups.':
     'This site will send its aggregated status (backups, RPO, usage, unprotected) to a central panel. Outbound push over mTLS; credentials and backup contents are never sent.',

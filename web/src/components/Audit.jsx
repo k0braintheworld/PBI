@@ -46,6 +46,8 @@ const ACTION_LABELS = {
   'config.import': 'Restaurar configuración',
   'central.update': 'Config. PBI Central',
   'central.test': 'Prueba de envío a Central',
+  'central.unlock': 'Desbloquear PBI Central',
+  'central.lock': 'Bloquear PBI Central',
 };
 const actionLabel = (code) => ACTION_LABELS[code] || code;
 
