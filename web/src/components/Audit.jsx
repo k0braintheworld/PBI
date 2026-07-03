@@ -44,6 +44,8 @@ const ACTION_LABELS = {
   'security.update': 'Config. de seguridad',
   'config.export': 'Exportar configuración',
   'config.import': 'Restaurar configuración',
+  'central.update': 'Config. PBI Central',
+  'central.test': 'Prueba de envío a Central',
 };
 const actionLabel = (code) => ACTION_LABELS[code] || code;
 

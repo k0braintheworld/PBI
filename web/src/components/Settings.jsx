@@ -16,15 +16,124 @@ export default function Settings({ onHostsChanged, user }) {
         <button className={section === 'pve' ? 'active' : ''} onClick={() => setSection('pve')}>{tr('Proxmox VE (recuperación)')}</button>
         <button className={section === 'notify' ? 'active' : ''} onClick={() => setSection('notify')}>{tr('Notificaciones')}</button>
         {isAdmin && <button className={section === 'users' ? 'active' : ''} onClick={() => setSection('users')}>{tr('Usuarios')}</button>}
+        {isAdmin && <button className={section === 'central' ? 'active' : ''} onClick={() => setSection('central')}>PBI Central</button>}
         <button className={section === 'prefs' ? 'active' : ''} onClick={() => setSection('prefs')}>{tr('Preferencias')}</button>
         <button className={section === 'account' ? 'active' : ''} onClick={() => setSection('account')}>{tr('Mi cuenta')}</button>
       </div>
       {section === 'pbs' && <PbsHosts onHostsChanged={onHostsChanged} />}
       {section === 'pve' && <PveHosts />}
       {section === 'notify' && <NotifySettings />}
+      {section === 'central' && isAdmin && <CentralSettings />}
       {section === 'prefs' && <Preferences isAdmin={isAdmin} />}
       {section === 'users' && isAdmin && <UserManagement currentUser={user} />}
       {section === 'account' && <AccountSettings />}
+    </div>
+  );
+}
+
+/* ===================== PBI Central (emisor multi-sede) ===================== */
+function CentralSettings() {
+  const tr = useT();
+  const [form, setForm] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const [test, setTest] = useState(null);
+
+  useEffect(() => {
+    api.centralGet().then(setForm).catch(() => setForm(false));
+  }, []);
+
+  if (form === null) return <Loading />;
+  if (form === false) return <ErrorBox error={tr('No se pudo cargar la configuración')} />;
+
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  async function save() {
+    setBusy(true); setMsg(null);
+    try { await api.centralSave(form); setMsg({ ok: true, text: tr('Configuración guardada.') }); }
+    catch (e) { setMsg({ ok: false, text: e.message }); }
+    finally { setBusy(false); }
+  }
+  async function sendTest() {
+    setTest({ loading: true });
+    try { await api.centralSave(form); const r = await api.centralTest(); setTest(r); }
+    catch (e) { setTest({ ok: false, error: e.message }); }
+  }
+
+  const fld = (label, k, ph, type = 'text') => (
+    <div className="field">
+      <label>{label}</label>
+      <input className="input" type={type} value={form[k] ?? ''} placeholder={ph}
+        onChange={(e) => set(k, type === 'number' ? Number(e.target.value) : e.target.value)} />
+    </div>
+  );
+
+  return (
+    <div className="grid" style={{ gap: 16, maxWidth: 720 }}>
+      <div className="card card-pad">
+        <div className="flex-between">
+          <h3 style={{ margin: 0 }}>{tr('Reportar a PBI Central')}</h3>
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input type="checkbox" checked={!!form.enabled} onChange={(e) => set('enabled', e.target.checked)} />
+            <span className="muted">{tr('Activado')}</span>
+          </label>
+        </div>
+        <p className="muted" style={{ marginTop: 6, fontSize: 12.5 }}>
+          {tr('Esta sede enviará su estado agregado (copias, RPO, ocupación, sin proteger) a un panel central. Envío saliente por mTLS; nunca se envían credenciales ni contenido de backups.')}
+        </p>
+
+        {fld(tr('URL del central'), 'url', 'https://central.midominio.com:4100')}
+        <div className="grid cols-2" style={{ gap: 12 }}>
+          {fld(tr('Identificador de sede (site.id)'), 'siteId', 'sede-madrid')}
+          {fld(tr('Nombre de la sede'), 'siteName', 'Sede Madrid')}
+        </div>
+        <p className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+          {tr('El identificador debe coincidir con el CN del certificado cliente de esta sede.')}
+        </p>
+      </div>
+
+      <div className="card card-pad">
+        <h3 style={{ marginTop: 0 }}>{tr('Certificado de sede (mTLS)')}</h3>
+        <p className="muted" style={{ marginTop: 4, fontSize: 12.5 }}>
+          {tr('Rutas a los ficheros del certificado en este servidor. La clave privada nunca sale de aquí ni pasa por el navegador.')}
+        </p>
+        {fld(tr('Certificado cliente (.pem/.crt)'), 'clientCertPath', '/etc/pbi/central/site.crt')}
+        {fld(tr('Clave privada (.key)'), 'clientKeyPath', '/etc/pbi/central/site.key')}
+        {fld(tr('CA del central (opcional)'), 'caPath', '/etc/pbi/central/ca.crt')}
+      </div>
+
+      <div className="card card-pad">
+        <h3 style={{ marginTop: 0 }}>{tr('Envío')}</h3>
+        <div className="grid cols-2" style={{ gap: 12 }}>
+          {fld(tr('Intervalo de envío (minutos)'), 'intervalMinutes', '10', 'number')}
+          <div className="field">
+            <label>{tr('Nombres de máquina')}</label>
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+              <input type="checkbox" checked={form.sendMachineNames !== false} onChange={(e) => set('sendMachineNames', e.target.checked)} />
+              <span className="muted" style={{ fontSize: 12.5 }}>{tr('Enviar nombres de VM/CT (además de los IDs)')}</span>
+            </label>
+          </div>
+        </div>
+
+        {form.lastResult && (
+          <div className={form.lastResult.ok ? 'banner' : 'error-box'} style={{ marginTop: 6 }}>
+            {form.lastResult.ok ? tr('Último envío correcto') : `${tr('Último envío con error')}: ${form.lastResult.error}`}
+            {form.lastResult.at ? ` · ${new Date(form.lastResult.at).toLocaleString()}` : ''}
+          </div>
+        )}
+
+        {test && !test.loading && (
+          test.ok
+            ? <div className="banner" style={{ marginTop: 6 }}>{tr('✓ Enviado correctamente al central')} (seq {test.sequence})</div>
+            : <div className="error-box" style={{ marginTop: 6 }}>✕ {test.error}</div>
+        )}
+
+        <div className="btn-row" style={{ marginTop: 12 }}>
+          <button className="btn primary" onClick={save} disabled={busy}>{busy ? tr('Guardando…') : tr('Guardar')}</button>
+          <button className="btn" onClick={sendTest} disabled={test?.loading}>{test?.loading ? tr('Enviando…') : tr('Guardar y probar envío')}</button>
+        </div>
+        {msg && <div className={msg.ok ? 'banner' : 'error-box'} style={{ marginTop: 10 }}>{msg.ok ? '✓ ' : '✕ '}{msg.text}</div>}
+      </div>
     </div>
   );
 }

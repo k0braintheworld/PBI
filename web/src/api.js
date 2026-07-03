@@ -46,6 +46,10 @@ export const api = {
   security: () => req('GET', '/security'),
   configImport: (body) => req('POST', '/config-backup/import', body),
   setSecurity: (body) => req('PUT', '/security', body),
+  // PBI Central (emisor multi-sede)
+  centralGet: () => req('GET', '/central'),
+  centralSave: (body) => req('PUT', '/central', body),
+  centralTest: () => req('POST', '/central/test'),
 
   // Mi cuenta (autoservicio)
   accountGet: () => req('GET', '/account'),

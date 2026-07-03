@@ -11,6 +11,7 @@ import { usersRouter } from './routes/users.js';
 import { accountRouter } from './routes/account.js';
 import { securityRouter } from './routes/security.js';
 import { configBackupRouter } from './routes/configBackup.js';
+import { centralRouter } from './routes/central.js';
 import { requireAuth, requireAdmin, requireOperator } from './session.js';
 import { hostsRouter } from './routes/hosts.js';
 import { pveRouter } from './routes/pve.js';
@@ -21,6 +22,7 @@ import { updateRouter } from './routes/update.js';
 import { apiRouter } from './routes/api.js';
 import { auditRouter } from './routes/audit.js';
 import { startNotifier } from './notifier.js';
+import { startCentralReporter } from './centralReporter.js';
 import { migrateSecrets as migrateHostSecrets } from './hostStore.js';
 import { migrateSecrets as migratePveSecrets } from './pveStore.js';
 import { migrateSecrets as migrateNotifySecrets } from './notifyStore.js';
@@ -97,6 +99,7 @@ app.use('/api', requireAuth);
 app.use('/api/account', accountRouter);
 app.use('/api/security', securityRouter);
 app.use('/api/config-backup', configBackupRouter);
+app.use('/api/central', requireAdmin, centralRouter);
 app.use('/api/users', requireAdmin, usersRouter);
 app.use('/api/audit', auditRouter);
 app.use('/api/hosts', hostsRouter);
@@ -137,6 +140,7 @@ server.listen(config.port, () => {
   // Cifra en reposo cualquier secreto que viniera en texto plano (instalaciones previas)
   try { migrateHostSecrets(); migratePveSecrets(); migrateNotifySecrets(); } catch (e) { console.warn('Aviso: migración de secretos:', e.message); }
   startNotifier();
+  startCentralReporter();
   startReportScheduler();
   startRestoreWatcher();
   startRestoreScheduler();
