@@ -129,6 +129,14 @@ export async function getDatastoreConfig(auth, store) {
 }
 
 /**
+ * Estado del último Garbage Collection del datastore. Aquí sí vienen las cifras
+ * fiables de deduplicación: index-data-bytes (lógico) y disk-bytes (físico dedup.).
+ */
+export async function getGcStatus(auth, store) {
+  return pbsCall(auth, { path: `/admin/datastore/${encodeURIComponent(store)}/gc` });
+}
+
+/**
  * Programa (o desactiva) el Garbage Collection del datastore. `schedule` es un
  * calendar-event de systemd (p.ej. 'daily', 'weekly', 'sun 03:00'); vacío = desactivar.
  */
@@ -166,19 +174,21 @@ export async function getDashboard(auth) {
 
   // Los datastores se consultan en paralelo (antes era secuencial).
   const dsResults = await Promise.all(datastores.map(async (ds) => {
-    const [status, snaps] = await Promise.all([
+    const [status, snaps, gc] = await Promise.all([
       getDatastoreStatus(auth, ds.store).catch(() => null),
       listSnapshots(auth, ds.store).catch(() => []),
+      getGcStatus(auth, ds.store).catch(() => null),
     ]);
-    return { ds, status, snaps };
+    return { ds, status, snaps, gc };
   }));
 
   const perDatastore = [];
   const allSnaps = [];
-  for (const { ds, status, snaps } of dsResults) {
+  for (const { ds, status, snaps, gc: gcStatus } of dsResults) {
     // El estado de GC de PBS da las cifras fiables de dedup: index-data-bytes
     // (lógico referenciado, contando duplicados) y disk-bytes (físico dedup.).
-    const gc = status?.['gc-status'] || status?.gc_status || {};
+    // Viene del endpoint /gc; algunas versiones también lo exponen en /status.
+    const gc = gcStatus || status?.['gc-status'] || status?.gc_status || {};
     perDatastore.push({
       store: ds.store,
       comment: ds.comment || '',

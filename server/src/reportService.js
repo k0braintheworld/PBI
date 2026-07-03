@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
-import { listTasks, listDatastores, getDatastoreStatus, listSnapshots } from './pbsService.js';
+import { listTasks, listDatastores, getDatastoreStatus, listSnapshots, getGcStatus } from './pbsService.js';
 
 /**
  * Construye un informe de copias para un rango [from, to] (epoch s).
@@ -27,11 +27,12 @@ export async function computeReport(auth, { from, to }, { sede = '', hostName = 
   const perDatastore = [];
   const allSnaps = [];
   for (const ds of datastores) {
-    const [status, snaps] = await Promise.all([
+    const [status, snaps, gcStatus] = await Promise.all([
       getDatastoreStatus(auth, ds.store).catch(() => null),
       listSnapshots(auth, ds.store).catch(() => []),
+      getGcStatus(auth, ds.store).catch(() => null),
     ]);
-    const gc = status?.['gc-status'] || status?.gc_status || {};
+    const gc = gcStatus || status?.['gc-status'] || status?.gc_status || {};
     perDatastore.push({ store: ds.store, used: status?.used ?? null, total: status?.total ?? null, gcLogical: gc['index-data-bytes'] ?? null, gcDisk: gc['disk-bytes'] ?? null });
     for (const s of snaps) allSnaps.push({ ...s, store: ds.store });
   }
