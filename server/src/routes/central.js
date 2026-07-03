@@ -84,12 +84,16 @@ centralRouter.post('/enroll', wrap(async (req, res) => {
   const siteId = String(b.site.id).replace(/[^a-zA-Z0-9._-]/g, '_');
   const certPath = path.join(dir, `${siteId}.crt`);
   const keyPath = path.join(dir, `${siteId}.key`);
-  const caPath = path.join(dir, 'ca.crt');
+  // caPath = certificado de SERVIDOR del central (para verificar/pinear la conexión).
+  // Si el paquete no lo trae (central con certificado real, p.ej. Let's Encrypt), se
+  // deja vacío y la sede valida contra las CAs del sistema.
+  const serverCaPem = b.serverCa || null;
+  const caPath = path.join(dir, 'server-ca.crt');
   try {
     fs.writeFileSync(certPath, b.cert, { mode: 0o644 });
     fs.writeFileSync(keyPath, b.key, { mode: 0o600 });
     try { fs.chmodSync(keyPath, 0o600); } catch { /* ignore */ }
-    if (b.ca) fs.writeFileSync(caPath, b.ca, { mode: 0o644 });
+    if (serverCaPem) fs.writeFileSync(caPath, serverCaPem, { mode: 0o644 });
   } catch (e) {
     return res.status(500).json({ error: `No se pudieron escribir los certificados: ${e.message}` });
   }
@@ -99,7 +103,7 @@ centralRouter.post('/enroll', wrap(async (req, res) => {
     siteName: b.site.name || b.site.id,
     clientCertPath: certPath,
     clientKeyPath: keyPath,
-    caPath: b.ca ? caPath : '',
+    caPath: serverCaPem ? caPath : '',
   });
   audit(req, 'central.enroll', '', 'ok', `Paquete importado para ${b.site.id}`);
   res.json(out);

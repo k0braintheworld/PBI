@@ -180,12 +180,18 @@ function postStatus(cfg, message) {
       timeout: 15000,
     };
     if (isHttps) {
-      // mTLS: certificado cliente de la sede. Verificación del servidor con CA si se
-      // proporciona; por defecto Node valida contra las CAs del sistema.
+      // mTLS: certificado cliente de la sede. Verificación del servidor:
+      //  - con caPath → se fija ESE certificado (pinning). Se sigue exigiendo que el
+      //    servidor lo presente (rejectUnauthorized por defecto), pero se omite la
+      //    comprobación del nombre/IP, para que funcione un central autofirmado por IP.
+      //  - sin caPath → Node valida contra las CAs del sistema (certificado real).
       try {
         if (cfg.clientCertPath) opts.cert = fs.readFileSync(cfg.clientCertPath);
         if (cfg.clientKeyPath) opts.key = fs.readFileSync(cfg.clientKeyPath);
-        if (cfg.caPath) opts.ca = fs.readFileSync(cfg.caPath);
+        if (cfg.caPath) {
+          opts.ca = fs.readFileSync(cfg.caPath);
+          opts.checkServerIdentity = () => undefined; // confiar en el cert fijado, sin comprobar el host
+        }
       } catch (e) { return reject(new Error(`No se pudo leer el certificado: ${e.message}`)); }
     }
     const lib = isHttps ? https : http;
