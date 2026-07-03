@@ -594,6 +594,13 @@ export const EN = {
   '(fallos, RPO, ocupación y máquinas sin proteger)': '(failures, RPO, usage and unprotected machines)',
   'Los avisos de RPO y ocupación se envían como máximo una vez al día por máquina/datastore. Guarda la configuración para aplicar.':
     'RPO and usage alerts are sent at most once a day per machine/datastore. Save the settings to apply.',
+  'Puntos': 'Points',
+  'Expandir': 'Expand',
+  'Contraer': 'Collapse',
+  'Resultados 24 h': 'Last-24h results',
+  'Fuera de RPO': 'Out of RPO',
+  'Ocupación': 'Usage',
+  'Sin proteger': 'Unprotected',
   'Copia de seguridad de la configuración': 'Configuration backup',
   'Exporta hosts, usuarios, notificaciones, informes y trabajos en un único fichero. No incluye el log de auditoría.':
     'Exports hosts, users, notifications, reports and jobs in a single file. The audit log is not included.',

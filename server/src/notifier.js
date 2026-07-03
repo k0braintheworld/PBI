@@ -178,6 +178,12 @@ async function checkAlerts(cfg, hosts, names, sede) {
 
 async function sendDigestIfDue(cfg, hosts, names, sede) {
   if (!cfg.digest?.enabled) return;
+  const blocks = {
+    tasks: cfg.digest.tasks !== false,
+    rpo: cfg.digest.rpo !== false,
+    storage: cfg.digest.storage !== false,
+    unprotected: cfg.digest.unprotected !== false,
+  };
   const today = todayKey();
   const state = notifyStore.getRaw().state || {};
   if (state.lastDigest === today) return;
@@ -192,15 +198,16 @@ async function sendDigestIfDue(cfg, hosts, names, sede) {
   for (const host of hosts) {
     try {
       const auth = await authForHost(host);
+      const needFresh = blocks.rpo || blocks.unprotected;
       const [tasks, fresh, storage] = await Promise.all([
-        listTasks(auth, { limit: 2000, since: now - 24 * 3600 }).catch(() => []),
-        backupFreshness(auth),
-        storageUsage(auth),
+        blocks.tasks ? listTasks(auth, { limit: 2000, since: now - 24 * 3600 }).catch(() => []) : [],
+        needFresh ? backupFreshness(auth) : new Map(),
+        blocks.storage ? storageUsage(auth) : [],
       ]);
       const done = (tasks || []).filter((t) => t.endtime != null && t.endtime > now - 24 * 3600);
       const failures = done.filter((t) => !isOk(t.status)).slice(0, 10)
         .map((t) => ({ type: t.type, id: t.id, status: t.status }));
-      const outOfRpo = [...fresh.values()].filter((g) => now - (g.last || 0) > rpoHours * 3600);
+      const outOfRpo = blocks.rpo ? [...fresh.values()].filter((g) => now - (g.last || 0) > rpoHours * 3600) : [];
       for (const g of fresh.values()) protectedIds.add(String(g.id));
       sections.push({
         host: host.name || host.host,
@@ -218,6 +225,7 @@ async function sendDigestIfDue(cfg, hosts, names, sede) {
   // Máquinas de PVE sin ninguna copia en ningún host PBS
   let unprotected = [];
   try {
+    if (!blocks.unprotected) throw new Error('skip');
     const pve = getDefaultPve();
     if (pve) {
       const guests = await pveGuests(pve);
@@ -228,7 +236,7 @@ async function sendDigestIfDue(cfg, hosts, names, sede) {
   } catch { /* ignore */ }
 
   try {
-    await sendMail(cfg.smtp, buildDigestEmail({ sections, unprotected, names }, { sede }));
+    await sendMail(cfg.smtp, buildDigestEmail({ sections, unprotected, names }, { sede, blocks }));
     notifyStore.setState({ lastDigest: today });
   } catch (e) { console.error('[notifier] error resumen diario:', e.message); }
 }

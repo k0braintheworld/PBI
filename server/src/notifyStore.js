@@ -26,7 +26,7 @@ const DEFAULTS = {
   // Vigilancia proactiva: aviso de máquinas fuera de RPO (sin copia reciente),
   // resumen diario por email y umbral de ocupación de datastores.
   rpo: { enabled: false, hours: 26 },
-  digest: { enabled: false, time: '08:00' },
+  digest: { enabled: false, time: '08:00', tasks: true, rpo: true, storage: true, unprotected: true },
   storageAlert: { enabled: false, percent: 85 },
   state: { lastSeen: null },
 };

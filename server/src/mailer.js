@@ -261,27 +261,28 @@ export function buildStorageEmail(stores, { sede, percent } = {}) {
 }
 
 /** Resumen diario: estado de las últimas 24 h en todos los servidores. */
-export function buildDigestEmail({ sections = [], unprotected = [], names = {} }, { sede } = {}) {
+export function buildDigestEmail({ sections = [], unprotected = [], names = {} }, { sede, blocks } = {}) {
+  const b = { tasks: true, rpo: true, storage: true, unprotected: true, ...(blocks || {}) };
   const site = sede || 'PBI';
-  const totalFail = sections.reduce((a, s) => a + s.fail, 0);
-  const totalRpo = sections.reduce((a, s) => a + (s.outOfRpo?.length || 0), 0);
-  const okAll = totalFail === 0 && totalRpo === 0 && unprotected.length === 0;
+  const totalFail = b.tasks ? sections.reduce((a, s) => a + s.fail, 0) : 0;
+  const totalRpo = b.rpo ? sections.reduce((a, s) => a + (s.outOfRpo?.length || 0), 0) : 0;
+  const okAll = totalFail === 0 && totalRpo === 0 && (!b.unprotected || unprotected.length === 0);
   const today = new Date().toLocaleDateString('es-ES');
   const subject = `[${site}] ${okAll ? '✅' : '⚠️'} Resumen diario de copias — ${today}`;
 
   const secHtml = sections.map((s) => {
-    const failRows = (s.failures || []).map((f) => `<div style="font-size:12px;color:#b62a25;padding:2px 0">✕ ${escapeHtml(f.type)} · ${escapeHtml(f.id || '—')} — <span style="font-family:Consolas,monospace">${escapeHtml((f.status || '').slice(0, 60))}</span></div>`).join('');
-    const rpoRows = (s.outOfRpo || []).map((m) => `<div style="font-size:12px;color:#a06806;padding:2px 0">⏰ ${escapeHtml(m.type)} ${escapeHtml(m.id)}${names[m.id] ? ` · ${escapeHtml(names[m.id])}` : ''} — última: ${m.last ? fmtDate(m.last) : 'nunca'}</div>`).join('');
-    const storage = (s.storage || []).map((d) => `<span style="font-size:12px;color:${d.pct >= 90 ? '#b62a25' : d.pct >= 75 ? '#a06806' : '#56616f'};padding-right:12px">${escapeHtml(d.store)}: <b>${d.pct}%</b></span>`).join('');
+    const failRows = (b.tasks ? (s.failures || []) : []).map((f) => `<div style="font-size:12px;color:#b62a25;padding:2px 0">✕ ${escapeHtml(f.type)} · ${escapeHtml(f.id || '—')} — <span style="font-family:Consolas,monospace">${escapeHtml((f.status || '').slice(0, 60))}</span></div>`).join('');
+    const rpoRows = (b.rpo ? (s.outOfRpo || []) : []).map((m) => `<div style="font-size:12px;color:#a06806;padding:2px 0">⏰ ${escapeHtml(m.type)} ${escapeHtml(m.id)}${names[m.id] ? ` · ${escapeHtml(names[m.id])}` : ''} — última: ${m.last ? fmtDate(m.last) : 'nunca'}</div>`).join('');
+    const storage = (b.storage ? (s.storage || []) : []).map((d) => `<span style="font-size:12px;color:${d.pct >= 90 ? '#b62a25' : d.pct >= 75 ? '#a06806' : '#56616f'};padding-right:12px">${escapeHtml(d.store)}: <b>${d.pct}%</b></span>`).join('');
     return `<div style="border:1px solid #eef1f5;border-radius:8px;padding:10px 14px;margin-bottom:10px">
       <div style="font-size:13px;font-weight:600;color:#1b2430;margin-bottom:4px">${escapeHtml(s.host)}</div>
-      <div style="font-size:12.5px;color:#56616f">Copias 24 h: <b style="color:#157a42">${s.ok} OK</b>${s.fail ? ` · <b style="color:#b62a25">${s.fail} con fallo</b>` : ''}</div>
+      ${b.tasks ? `<div style="font-size:12.5px;color:#56616f">Copias 24 h: <b style="color:#157a42">${s.ok} OK</b>${s.fail ? ` · <b style="color:#b62a25">${s.fail} con fallo</b>` : ''}</div>` : ''}
       ${failRows}${rpoRows}
       ${storage ? `<div style="margin-top:5px">${storage}</div>` : ''}
     </div>`;
   }).join('');
 
-  const unpHtml = unprotected.length
+  const unpHtml = b.unprotected && unprotected.length
     ? `<div style="background:#fbf2dd;border:1px solid #f0d9a8;border-radius:8px;padding:9px 13px;font-size:12.5px;color:#a06806;margin-bottom:10px">
         ⚠ <b>${unprotected.length} máquina(s) sin proteger</b> (sin ninguna copia en PBS): ${unprotected.slice(0, 10).map((g) => `${escapeHtml(String(g.vmid))}${g.name ? ` (${escapeHtml(g.name)})` : ''}`).join(' · ')}${unprotected.length > 10 ? ' …' : ''}
       </div>` : '';
@@ -293,8 +294,8 @@ export function buildDigestEmail({ sections = [], unprotected = [], names = {} }
   });
   const text = [
     `${site} — Resumen diario ${today}`,
-    ...sections.map((s) => `${s.host}: ${s.ok} OK, ${s.fail} fallo(s), ${s.outOfRpo?.length || 0} fuera de RPO`),
-    unprotected.length ? `Sin proteger: ${unprotected.map((g) => g.vmid).join(', ')}` : '',
+    ...sections.map((s) => `${s.host}: ${b.tasks ? `${s.ok} OK, ${s.fail} fallo(s)` : ''}${b.rpo ? ` ${s.outOfRpo?.length || 0} fuera de RPO` : ''}`.trim()),
+    b.unprotected && unprotected.length ? `Sin proteger: ${unprotected.map((g) => g.vmid).join(', ')}` : '',
   ].filter(Boolean).join('\n');
   return { subject, html, text };
 }

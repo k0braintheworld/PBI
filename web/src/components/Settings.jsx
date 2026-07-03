@@ -388,7 +388,11 @@ function NotifySettings() {
       notifyRestore: c.notifyRestore !== false,
       silenceProxmox: !!c.silenceProxmox,
       rpo: { enabled: !!c.rpo?.enabled, hours: c.rpo?.hours ?? 26 },
-      digest: { enabled: !!c.digest?.enabled, time: c.digest?.time || '08:00' },
+      digest: {
+        enabled: !!c.digest?.enabled, time: c.digest?.time || '08:00',
+        tasks: c.digest?.tasks !== false, rpo: c.digest?.rpo !== false,
+        storage: c.digest?.storage !== false, unprotected: c.digest?.unprotected !== false,
+      },
       storageAlert: { enabled: !!c.storageAlert?.enabled, percent: c.storageAlert?.percent ?? 85 },
       types: c.types || [], hasPass: c.smtp?.hasPass,
       smtp: { host: c.smtp?.host || '', port: c.smtp?.port || 587, secure: !!c.smtp?.secure, user: c.smtp?.user || '', pass: '', from: c.smtp?.from || '', to: c.smtp?.to || '' },
@@ -406,7 +410,10 @@ function NotifySettings() {
     const body = {
       enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, notifyRestore: form.notifyRestore, types: form.types,
       rpo: { enabled: !!form.rpo.enabled, hours: Math.max(1, Math.min(720, Number(form.rpo.hours) || 26)) },
-      digest: { enabled: !!form.digest.enabled, time: form.digest.time || '08:00' },
+      digest: {
+        enabled: !!form.digest.enabled, time: form.digest.time || '08:00',
+        tasks: !!form.digest.tasks, rpo: !!form.digest.rpo, storage: !!form.digest.storage, unprotected: !!form.digest.unprotected,
+      },
       storageAlert: { enabled: !!form.storageAlert.enabled, percent: Math.max(50, Math.min(99, Number(form.storageAlert.percent) || 85)) },
       smtp: { ...form.smtp },
     };
@@ -496,8 +503,16 @@ function NotifySettings() {
           <span>{tr('Resumen diario por email a las')}</span>
           <input className="input" type="time" style={{ width: 110 }} value={form.digest.time}
             onChange={(e) => set('digest', { ...form.digest, time: e.target.value })} />
-          <span className="muted" style={{ fontSize: 12 }}>{tr('(fallos, RPO, ocupación y máquinas sin proteger)')}</span>
         </label>
+        <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', margin: '2px 0 6px 28px', opacity: form.digest.enabled ? 1 : 0.45 }}>
+          {[['tasks', tr('Resultados 24 h')], ['rpo', tr('Fuera de RPO')], ['storage', tr('Ocupación')], ['unprotected', tr('Sin proteger')]].map(([k, label]) => (
+            <label key={k} style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 12.5 }}>
+              <input type="checkbox" disabled={!form.digest.enabled} checked={form.digest[k]}
+                onChange={(e) => set('digest', { ...form.digest, [k]: e.target.checked })} />
+              <span>{label}</span>
+            </label>
+          ))}
+        </div>
 
         <p className="muted" style={{ fontSize: 11.5, marginBottom: 0 }}>{tr('Los avisos de RPO y ocupación se envían como máximo una vez al día por máquina/datastore. Guarda la configuración para aplicar.')}</p>
       </div>

@@ -38,7 +38,7 @@ export default function Login({ needsSetup, onDone }) {
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg)', padding: 20 }}>
       <div className="card" style={{ width: '100%', maxWidth: 380, padding: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 11, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 11, marginBottom: 6 }}>
           <Logo size={44} />
           <div style={{ lineHeight: 1.1, textAlign: 'center' }}>
             <div style={{ fontWeight: 700, fontSize: 21, letterSpacing: 3, paddingLeft: 3 }}>PBI</div>
@@ -46,8 +46,8 @@ export default function Login({ needsSetup, onDone }) {
           </div>
         </div>
 
-        <h3 style={{ margin: '18px 0 4px', fontSize: 16 }}>{needsSetup ? t('Crear administrador') : t('Iniciar sesión')}</h3>
-        <p className="muted" style={{ marginTop: 0, fontSize: 13 }}>
+        <h3 style={{ margin: '18px 0 4px', fontSize: 16, textAlign: 'center' }}>{needsSetup ? t('Crear administrador') : t('Iniciar sesión')}</h3>
+        <p className="muted" style={{ marginTop: 0, fontSize: 13, textAlign: 'center' }}>
           {needsSetup ? t('Es el primer acceso: crea la cuenta de administrador del panel.') : t('Introduce tus credenciales para acceder.')}
         </p>
 
