@@ -10,7 +10,19 @@ import { pveGuests } from './pveService.js';
 import { getRaw as getReportCfg } from './reportStore.js';
 import * as centralStore from './centralStore.js';
 import { isCentralUnlocked } from './featureStore.js';
-import { APP_VERSION } from '../../web/src/version.js';
+
+// Versión de PBI para el informe. Se resuelve de forma robusta: en el paquete .deb
+// no se incluye web/src, así que NUNCA se debe importar estáticamente de ahí (rompería
+// el arranque). Se usa PBI_VERSION (inyectada por el .deb) y, en desarrollo, se intenta
+// leer web/src/version.js dinámicamente.
+let _versionCache;
+async function resolveVersion() {
+  if (_versionCache !== undefined) return _versionCache;
+  if (process.env.PBI_VERSION) { _versionCache = process.env.PBI_VERSION; return _versionCache; }
+  try { _versionCache = (await import('../../web/src/version.js')).APP_VERSION || ''; }
+  catch { _versionCache = ''; }
+  return _versionCache;
+}
 
 /**
  * Emisor hacia PBI Central. Recolecta el estado agregado de TODOS los hosts PBS de
@@ -140,13 +152,14 @@ export async function collectSiteStatus() {
     : (outOfRpoCount > 0 || unprotected.length > 0 || worstDatastorePct >= (notify?.storageAlert?.percent || 85)) ? 'warn'
       : 'ok';
 
+  const pbiVersion = await resolveVersion();
   return {
     schema: SCHEMA_ID,
     version: 1,
     site: {
       id: cfg.siteId || 'sede',
       name: cfg.siteName || getReportCfg()?.sede || 'Sede',
-      pbiVersion: APP_VERSION || '',
+      pbiVersion,
     },
     generatedAt: new Date().toISOString(),
     sequence: centralStore.nextSequence(),

@@ -42,7 +42,7 @@ cp "$ROOT/packaging/deb/pbi-update.path" "$PKG/lib/systemd/system/pbi-update.pat
 echo "==> Ficheros de sistema (systemd, env, copyright)"
 mkdir -p "$PKG/etc/pbi" "$PKG/lib/systemd/system" "$PKG/DEBIAN" "$PKG/usr/share/doc/pbi"
 cp "$ROOT/packaging/deb/pbi.env" "$PKG/etc/pbi/pbi.env"
-cp "$ROOT/packaging/deb/pbi.service" "$PKG/lib/systemd/system/pbi.service"
+sed "s/__VERSION__/$VERSION/" "$ROOT/packaging/deb/pbi.service" > "$PKG/lib/systemd/system/pbi.service"
 cp "$ROOT/packaging/deb/copyright" "$PKG/usr/share/doc/pbi/copyright"
 cp "$ROOT/LICENSE" "$PKG/usr/share/doc/pbi/LICENSE"
 sed "s/__VERSION__/$VERSION/; s/__ARCH__/$ARCH/" "$ROOT/packaging/deb/control" > "$PKG/DEBIAN/control"
