@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 // Gráficas SVG ligeras (sin librerías externas).
 import { tg } from '../i18n.jsx';
 

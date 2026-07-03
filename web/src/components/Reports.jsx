@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useEffect, useState } from 'react';
 import { api, fmtBytes } from '../api.js';
 import { useAsync, Loading, ErrorBox } from './common.jsx';

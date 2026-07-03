@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import https from 'node:https';
 import http from 'node:http';
 import fs from 'node:fs';

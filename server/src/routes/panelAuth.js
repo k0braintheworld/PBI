@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { Router } from 'express';
 import * as users from '../userStore.js';
 import { createSession, destroySession, getSession, COOKIE } from '../session.js';

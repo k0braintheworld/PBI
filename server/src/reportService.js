@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { listTasks, listDatastores, getDatastoreStatus, listSnapshots } from './pbsService.js';
 
 /**
@@ -29,7 +31,8 @@ export async function computeReport(auth, { from, to }, { sede = '', hostName = 
       getDatastoreStatus(auth, ds.store).catch(() => null),
       listSnapshots(auth, ds.store).catch(() => []),
     ]);
-    perDatastore.push({ store: ds.store, used: status?.used ?? null, total: status?.total ?? null });
+    const gc = status?.['gc-status'] || status?.gc_status || {};
+    perDatastore.push({ store: ds.store, used: status?.used ?? null, total: status?.total ?? null, gcLogical: gc['index-data-bytes'] ?? null, gcDisk: gc['disk-bytes'] ?? null });
     for (const s of snaps) allSnaps.push({ ...s, store: ds.store });
   }
   // Último snapshot por grupo (para tamaño/verificación)
@@ -66,9 +69,15 @@ export async function computeReport(auth, { from, to }, { sede = '', hostName = 
   const failures = failPool.sort((a, b) => (b.endtime || 0) - (a.endtime || 0)).slice(0, 25);
   const totalUsed = perDatastore.reduce((a, x) => a + (x.used || 0), 0);
   const totalCap = perDatastore.reduce((a, x) => a + (x.total || 0), 0);
-  // Tamaño lógico total de las copias (suma de snapshots) y factor de deduplicación
-  const backupsLogical = allSnaps.reduce((a, s) => a + (s.size || 0), 0);
-  const dedup = totalUsed > 0 ? backupsLogical / totalUsed : 0;
+  // Tamaño lógico + dedup: preferimos el dato fiable de GC (index-data-bytes /
+  // disk-bytes); si no hay GC, caemos a la suma de snapshots (menos fiable).
+  const gcLogicalSum = perDatastore.reduce((a, x) => a + (x.gcLogical || 0), 0);
+  const gcDiskSum = perDatastore.reduce((a, x) => a + (x.gcDisk || 0), 0);
+  const snapLogicalSum = allSnaps.reduce((a, s) => a + (s.size || 0), 0);
+  const backupsLogical = gcLogicalSum > 0 ? gcLogicalSum : snapLogicalSum;
+  const physicalForDedup = gcDiskSum > 0 ? gcDiskSum : totalUsed;
+  // Solo se muestra el factor si viene de GC (fiable); si no, el informe lo omite.
+  const dedup = (gcLogicalSum > 0 && physicalForDedup > 0) ? backupsLogical / physicalForDedup : 0;
 
   // Calendario diario: estado de las copias por día del periodo
   const ymd = (dd) => `${dd.getFullYear()}-${String(dd.getMonth() + 1).padStart(2, '0')}-${String(dd.getDate()).padStart(2, '0')}`;

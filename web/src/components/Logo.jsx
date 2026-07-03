@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 /**
  * Logo de PBI: escudo (seguridad/backup) con la "X" de Proxmox dentro,
  * formada por 4 cuñas blancas con el hueco central característico.

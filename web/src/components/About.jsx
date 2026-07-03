@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import Logo from './Logo.jsx';
 import { APP_VERSION, APP_COPYRIGHT, APP_LICENSE, APP_TAGLINE } from '../version.js';
 import { useT } from '../i18n.jsx';

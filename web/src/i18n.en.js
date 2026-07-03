@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 /**
  * Diccionario de traducción español → inglés.
  * Clave = cadena original en español (tal cual aparece en el código).
@@ -140,6 +142,7 @@ export const EN = {
   'en copias': 'in backups',
   'deduplicado': 'deduplicated',
   'tamaño lógico': 'logical size',
+  'ejecuta un GC para ver la deduplicación': 'run a GC to see deduplication',
   'Últimas copias de seguridad': 'Latest backups',
   'Ver todo': 'View all',
   'Grupo': 'Group',

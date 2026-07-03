@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { Router } from 'express';
 import { getSecurity, updateSecurity } from '../securityStore.js';
 import { requireAdmin } from '../session.js';

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import PDFDocument from 'pdfkit';
 import { calendarWeeks, CAL_COLORS } from './reportService.js';
 

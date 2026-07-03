@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 /**
  * Protección anti-fuerza-bruta del login: bloqueo temporal por usuario y por IP
  * tras varios intentos fallidos. Contadores en memoria (se reinician al reiniciar

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useState, useEffect } from 'react';
 import { api, fmtBytes, fmtDate, fmtAgo } from '../api.js';
 import { useAsync, Loading, ErrorBox, VerifyBadge, taskTypeLabel } from './common.jsx';
@@ -34,8 +36,14 @@ export default function Dashboard({ goTo, user }) {
   const unprotected = data.unprotected || [];
   const totalPct = storage.totalCapacity ? (storage.totalUsed / storage.totalCapacity) * 100 : 0;
   const logical = storage.logical || 0;
-  const dedup = storage.totalUsed > 0 ? logical / storage.totalUsed : 0;
-  const savingsPct = logical > 0 ? Math.max(0, (1 - storage.totalUsed / logical) * 100) : 0;
+  // Físico para el factor: preferimos disk-bytes de GC (exacto); si no, el usado del NAS.
+  const physical = storage.dedupPhysical || storage.totalUsed || 0;
+  const dedup = physical > 0 && logical > 0 ? logical / physical : 0;
+  // El dato de GC es autoritativo; la suma de snapshots no es fiable. Mostramos el
+  // factor solo si viene de GC y es >= 1.05 (dedup apreciable).
+  const gcBased = storage.logicalSource === 'gc';
+  const dedupReliable = gcBased && dedup >= 1.05;
+  const savingsPct = dedupReliable ? Math.max(0, (1 - physical / logical) * 100) : 0;
 
   return (
     <div className="rise">
@@ -120,8 +128,16 @@ export default function Dashboard({ goTo, user }) {
               </div>
               <div className="donut-cell">
                 <div className="donut-lbl">{t('Datos protegidos')}</div>
-                <Donut percent={savingsPct} size={112} color="var(--info)" label={fmtBytes(logical)} sub={t('en copias')} />
-                <div className="cap">{dedup >= 1 ? <><b className="mono">≈ {dedup.toFixed(1)}×</b> {t('deduplicado')}</> : <span className="muted">{t('tamaño lógico')}</span>}</div>
+                {dedupReliable ? (
+                  <Donut percent={savingsPct} size={112} color="var(--info)" label={fmtBytes(logical)} sub={t('en copias')} />
+                ) : (
+                  // Sin dato de dedup fiable (GC no ejecutada o PBS no reporta tamaños):
+                  // anillo neutro con el tamaño, en vez de un donut a 0% que parece roto.
+                  <Donut percent={100} size={112} color="var(--surface-3)" label={logical > 0 ? fmtBytes(logical) : fmtBytes(storage.totalUsed)} sub={t('en copias')} />
+                )}
+                <div className="cap">{dedupReliable
+                  ? <><b className="mono">≈ {dedup.toFixed(1)}×</b> {t('deduplicado')}</>
+                  : <span className="muted">{gcBased ? t('tamaño lógico') : t('ejecuta un GC para ver la deduplicación')}</span>}</div>
               </div>
             </div>
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 12 }}>

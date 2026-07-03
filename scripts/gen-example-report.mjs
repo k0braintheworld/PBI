@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 // Genera los ejemplos de docs/examples/ (informe HTML+PDF y notificaciones) con
 // datos ficticios, usando el propio motor de PBI. Reejecutar tras cambios de
 // formato:  node scripts/gen-example-report.mjs

@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { Router } from 'express';
 import * as restoreStore from '../restoreStore.js';
 import { runRestoreJobNow } from '../restoreScheduler.js';

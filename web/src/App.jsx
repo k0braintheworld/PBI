@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { api, getActiveHost, setActiveHost } from './api.js';
 import { Icon } from './components/icons.jsx';

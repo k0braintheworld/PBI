@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import dotenv from 'dotenv';
 import path from 'node:path';
 import fs from 'node:fs';

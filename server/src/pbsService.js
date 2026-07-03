@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { config } from './config.js';
 import { pbsCall } from './pbsClient.js';
 
@@ -159,13 +161,17 @@ export async function getDashboard(auth) {
   const perDatastore = [];
   const allSnaps = [];
   for (const { ds, status, snaps } of dsResults) {
+    // El estado de GC de PBS da las cifras fiables de dedup: index-data-bytes
+    // (lógico referenciado, contando duplicados) y disk-bytes (físico dedup.).
+    const gc = status?.['gc-status'] || status?.gc_status || {};
     perDatastore.push({
       store: ds.store,
       comment: ds.comment || '',
       total: status?.total ?? null,
       used: status?.used ?? null,
       avail: status?.avail ?? null,
-      gc_status: status?.gc_status ?? null,
+      gcLogical: gc['index-data-bytes'] ?? null,
+      gcDisk: gc['disk-bytes'] ?? null,
     });
     for (const s of snaps) allSnaps.push({ ...s, store: ds.store });
   }
@@ -197,13 +203,20 @@ export async function getDashboard(auth) {
     .sort((a, b) => (b.time || 0) - (a.time || 0));
 
   // --- Almacenamiento ---
+  // Tamaño lógico: preferimos el dato de GC (index-data-bytes, fiable) y, si no hay
+  // GC ejecutada aún, caemos a la suma de tamaños de snapshot (menos fiable: PBS no
+  // siempre rellena `size`). Físico deduplicado: disk-bytes de GC si está.
+  const gcLogicalSum = perDatastore.reduce((a, d) => a + (d.gcLogical || 0), 0);
+  const gcDiskSum = perDatastore.reduce((a, d) => a + (d.gcDisk || 0), 0);
+  const snapLogicalSum = allSnaps.reduce((a, s) => a + (s.size || 0), 0);
   const storage = {
     perDatastore,
     totalUsed: perDatastore.reduce((a, d) => a + (d.used || 0), 0),
     totalCapacity: perDatastore.reduce((a, d) => a + (d.total || 0), 0),
-    // Tamaño lógico total de las copias (suma de snapshots); con dedup suele ser
-    // mayor que el disco realmente usado.
-    logical: allSnaps.reduce((a, s) => a + (s.size || 0), 0),
+    logical: gcLogicalSum > 0 ? gcLogicalSum : snapLogicalSum,
+    // Físico deduplicado del chunk store (para el factor de dedup exacto de PBS).
+    dedupPhysical: gcDiskSum > 0 ? gcDiskSum : null,
+    logicalSource: gcLogicalSum > 0 ? 'gc' : (snapLogicalSum > 0 ? 'snapshots' : 'none'),
   };
 
   // --- Tareas de los últimos 35 días ---

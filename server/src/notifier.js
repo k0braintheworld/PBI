@@ -1,3 +1,5 @@
+// SPDX-License-Identifier: GPL-3.0-only
+// Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { listHostsRaw } from './hostStore.js';
 import { authForHost } from './authResolver.js';
 import { listTasks, getTaskLog, listDatastores, listSnapshots, getDatastoreStatus } from './pbsService.js';
