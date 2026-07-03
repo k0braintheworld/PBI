@@ -6,6 +6,8 @@ import { pveGuests } from '../pveService.js';
 import { reportsRouter } from './reports.js';
 import { requireOperator } from '../session.js';
 import { audit } from '../auditLog.js';
+import * as excludedVms from '../excludedVms.js';
+import { excludedSet } from '../excludedVms.js';
 
 export const apiRouter = Router();
 
@@ -27,18 +29,35 @@ apiRouter.get('/overview', wrap(async (req, res) => {
 
 apiRouter.get('/dashboard', wrap(async (req, res) => {
   const dash = await pbs.getDashboard(req.auth);
-  // Máquinas de PVE sin ninguna copia en este PBS (excluye plantillas)
+  // Máquinas de PVE sin ninguna copia en este PBS (excluye plantillas y las marcadas
+  // como "sin copia necesaria").
   try {
     const pve = getDefaultPve();
     if (pve) {
       const ids = new Set(dash.protectedIds || []);
+      const excluded = excludedSet();
       const guests = await pveGuests(pve);
       dash.unprotected = (guests || [])
-        .filter((g) => !g.template && !ids.has(String(g.vmid)))
+        .filter((g) => !g.template && !ids.has(String(g.vmid)) && !excluded.has(String(g.vmid)))
         .map((g) => ({ vmid: g.vmid, name: g.name || '', type: g.type }));
     }
   } catch { /* sin PVE o inaccesible: omitir */ }
   res.json(dash);
+}));
+
+// --- VMs marcadas como "sin copia necesaria" (no cuentan como sin proteger) ----
+apiRouter.get('/excluded-vms', (req, res) => res.json(excludedVms.list()));
+
+apiRouter.post('/excluded-vms', requireOperator, wrap(async (req, res) => {
+  const out = excludedVms.add(req.body || {});
+  audit(req, 'excluded_vm.add', String(req.body?.vmid || ''), 'ok', `VM ${req.body?.vmid} marcada sin copia necesaria`);
+  res.json(out);
+}));
+
+apiRouter.delete('/excluded-vms/:vmid', requireOperator, wrap(async (req, res) => {
+  const out = excludedVms.remove(req.params.vmid);
+  audit(req, 'excluded_vm.remove', req.params.vmid, 'ok', `VM ${req.params.vmid} vuelve a vigilarse`);
+  res.json(out);
 }));
 
 // --- Datastores / snapshots ------------------------------------------------

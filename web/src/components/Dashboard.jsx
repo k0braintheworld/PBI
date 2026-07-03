@@ -7,11 +7,25 @@ import { AreaChart, Donut } from './charts.jsx';
 import { useT } from '../i18n.jsx';
 
 /** Dashboard estilo Active Backup / Veeam: visión general densa y profesional. */
-export default function Dashboard({ goTo }) {
+export default function Dashboard({ goTo, user }) {
   const t = useT();
-  const { loading, error, data } = useAsync(() => api.dashboard(), []);
+  const { loading, error, data, reload } = useAsync(() => api.dashboard(), []);
   const names = useGuestNames();
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
+  const [excluded, setExcluded] = useState([]);
+  const canEdit = user?.role !== 'viewer';
+
+  const loadExcluded = () => api.excludedVms().then(setExcluded).catch(() => {});
+  useEffect(() => { loadExcluded(); }, []);
+
+  async function excludeVm(g) {
+    try { await api.excludedVmAdd({ vmid: g.vmid, name: g.name }); await loadExcluded(); reload(); }
+    catch { /* ignore */ }
+  }
+  async function restoreVm(vmid) {
+    try { await api.excludedVmRemove(vmid); await loadExcluded(); reload(); }
+    catch { /* ignore */ }
+  }
 
   if (loading) return <Loading />;
   if (error) return <ErrorBox error={error} />;
@@ -59,14 +73,39 @@ export default function Dashboard({ goTo }) {
                 <span className="badge warn">{unprotected.length}</span>
               </div>
               <div className="panel-body" style={{ fontSize: 12.5 }}>
-                {unprotected.slice(0, 8).map((g) => (
-                  <div key={g.vmid} style={{ padding: '3px 0' }}>
-                    <span className="badge muted plain">{g.type === 'lxc' ? 'ct' : 'vm'}</span> <b>{g.vmid}</b>{g.name ? <span className="muted"> · {g.name}</span> : null}
+                {unprotected.slice(0, 12).map((g) => (
+                  <div key={g.vmid} className="flex-between" style={{ padding: '3px 0', gap: 8 }}>
+                    <span><span className="badge muted plain">{g.type === 'lxc' ? 'ct' : 'vm'}</span> <b>{g.vmid}</b>{g.name ? <span className="muted"> · {g.name}</span> : null}</span>
+                    {canEdit && (
+                      <button className="btn sm ghost" title={t('Marcar como sin copia necesaria (no volverá a avisar)')}
+                        onClick={() => excludeVm(g)} style={{ padding: '1px 7px', fontSize: 11 }}>{t('no requiere copia')}</button>
+                    )}
                   </div>
                 ))}
-                {unprotected.length > 8 && <div className="muted" style={{ paddingTop: 4 }}>+{unprotected.length - 8} {t('más')}</div>}
+                {unprotected.length > 12 && <div className="muted" style={{ paddingTop: 4 }}>+{unprotected.length - 12} {t('más')}</div>}
                 <p className="muted" style={{ fontSize: 11.5, margin: '8px 0 0' }}>{t('Máquinas de Proxmox VE sin ninguna copia en este PBS.')}</p>
               </div>
+            </div>
+          )}
+
+          {/* VMs marcadas como sin copia necesaria (restaurables) */}
+          {excluded.length > 0 && (
+            <div className="card">
+              <details>
+                <summary className="panel-head" style={{ cursor: 'pointer', listStyle: 'revert' }}>
+                  <h3 style={{ display: 'inline' }}>{t('Sin copia necesaria')}</h3>
+                  <span className="badge muted" style={{ marginLeft: 6 }}>{excluded.length}</span>
+                </summary>
+                <div className="panel-body" style={{ fontSize: 12.5 }}>
+                  <p className="muted" style={{ fontSize: 11.5, margin: '0 0 8px' }}>{t('Excluidas de las alertas de «sin proteger» (panel, email e informes).')}</p>
+                  {excluded.map((g) => (
+                    <div key={g.vmid} className="flex-between" style={{ padding: '3px 0', gap: 8 }}>
+                      <span><b>{g.vmid}</b>{g.name ? <span className="muted"> · {g.name}</span> : null}</span>
+                      {canEdit && <button className="btn sm ghost" onClick={() => restoreVm(g.vmid)} style={{ padding: '1px 7px', fontSize: 11 }}>{t('volver a vigilar')}</button>}
+                    </div>
+                  ))}
+                </div>
+              </details>
             </div>
           )}
 

@@ -80,6 +80,9 @@ export const api = {
   version: () => req('GET', '/version'),
   overview: () => req('GET', '/overview'),
   dashboard: () => req('GET', '/dashboard'),
+  excludedVms: () => req('GET', '/excluded-vms'),
+  excludedVmAdd: (body) => req('POST', '/excluded-vms', body),
+  excludedVmRemove: (vmid) => req('DELETE', `/excluded-vms/${encodeURIComponent(vmid)}`),
 
   // Datastores
   datastores: () => req('GET', '/datastores'),

@@ -49,6 +49,8 @@ const ACTION_LABELS = {
   'central.unlock': 'Desbloquear PBI Central',
   'central.lock': 'Bloquear PBI Central',
   'central.enroll': 'Importar paquete de sede',
+  'excluded_vm.add': 'Marcar VM sin copia',
+  'excluded_vm.remove': 'Reactivar vigilancia de VM',
 };
 const actionLabel = (code) => ACTION_LABELS[code] || code;
 

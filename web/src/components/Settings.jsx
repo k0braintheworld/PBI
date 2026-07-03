@@ -58,29 +58,35 @@ function CentralSettings() {
 
   if (!state.unlocked) {
     return (
-      <div className="grid" style={{ gap: 16, maxWidth: 520 }}>
+      <div className="grid" style={{ gap: 16, maxWidth: 560 }}>
         <div className="card card-pad">
           <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
             <Icon.lock width={16} height={16} /> PBI Central
-            <span className="badge muted" style={{ marginLeft: 4 }}>{tr('bloqueado')}</span>
+            <span className="badge muted" style={{ marginLeft: 4 }}>{tr('en investigación')}</span>
           </h3>
-          <p className="muted" style={{ fontSize: 13 }}>
-            {tr('Función para reportar el estado de esta sede a un panel central multi-sede. Está desactivada y bloqueada por defecto. Introduce la contraseña de desbloqueo para habilitarla.')}
-          </p>
-          {!state.unlockConfigured ? (
-            <div className="error-box">{tr('Esta versión de PBI no incluye contraseña de desbloqueo para esta función.')}</div>
-          ) : (
-            <form onSubmit={unlock}>
-              <div className="field">
-                <label>{tr('Contraseña de desbloqueo')}</label>
-                <input className="input" type="password" value={pass} autoComplete="off"
-                  onChange={(e) => setPass(e.target.value)} autoFocus />
-              </div>
-              {err && <div className="error-box">✕ {err}</div>}
-              <button className="btn primary" disabled={busy || !pass} style={{ marginTop: 4 }}>
-                {busy ? tr('Comprobando…') : tr('Desbloquear')}
-              </button>
-            </form>
+          <div className="banner" style={{ borderLeft: '3px solid var(--brand)' }}>
+            <strong>{tr('🔬 Función en investigación — todavía no disponible.')}</strong>
+            <p className="muted" style={{ margin: '6px 0 0', fontSize: 12.5 }}>
+              {tr('Reportará el estado de esta sede a un panel central multi-sede. Aún está en desarrollo: la contraseña de desbloqueo no está disponible, así que ')}
+              <b>{tr('esta opción no se puede usar por ahora')}</b>{tr('. No hace falta que intentes desbloquearla; se habilitará en una versión futura.')}
+            </p>
+          </div>
+
+          {state.unlockConfigured && (
+            <details style={{ marginTop: 12 }}>
+              <summary className="muted" style={{ cursor: 'pointer', fontSize: 12 }}>{tr('Acceso de desarrollador')}</summary>
+              <form onSubmit={unlock} style={{ marginTop: 10 }}>
+                <div className="field">
+                  <label>{tr('Contraseña de desbloqueo')}</label>
+                  <input className="input" type="password" value={pass} autoComplete="off"
+                    onChange={(e) => setPass(e.target.value)} />
+                </div>
+                {err && <div className="error-box">✕ {err}</div>}
+                <button className="btn primary" disabled={busy || !pass} style={{ marginTop: 4 }}>
+                  {busy ? tr('Comprobando…') : tr('Desbloquear')}
+                </button>
+              </form>
+            </details>
           )}
         </div>
       </div>

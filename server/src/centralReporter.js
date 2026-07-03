@@ -10,6 +10,7 @@ import { pveGuests } from './pveService.js';
 import { getRaw as getReportCfg } from './reportStore.js';
 import * as centralStore from './centralStore.js';
 import { isCentralUnlocked } from './featureStore.js';
+import { excludedSet } from './excludedVms.js';
 
 // Versión de PBI para el informe. Se resuelve de forma robusta: en el paquete .deb
 // no se incluye web/src, así que NUNCA se debe importar estáticamente de ahí (rompería
@@ -127,10 +128,11 @@ export async function collectSiteStatus() {
   try {
     const pve = getDefaultPve();
     if (pve) {
+      const excluded = excludedSet();
       const guests = await pveGuests(pve);
       for (const g of guests || []) guestNames[String(g.vmid)] = g.name || '';
       unprotected = (guests || [])
-        .filter((g) => !g.template && !protectedIds.has(String(g.vmid)))
+        .filter((g) => !g.template && !protectedIds.has(String(g.vmid)) && !excluded.has(String(g.vmid)))
         .map((g) => ({ vmid: g.vmid, name: cfg.sendMachineNames ? (g.name || '') : '', type: g.type === 'lxc' ? 'ct' : 'vm' }));
     }
   } catch { /* sin PVE: se omite el enriquecimiento */ }

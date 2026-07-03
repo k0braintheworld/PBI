@@ -6,6 +6,7 @@ import { pveGuests } from './pveService.js';
 import * as notifyStore from './notifyStore.js';
 import { getRaw as getReportCfg } from './reportStore.js';
 import { sendMail, buildTaskEmail, buildRpoEmail, buildStorageEmail, buildDigestEmail } from './mailer.js';
+import { excludedSet } from './excludedVms.js';
 
 /**
  * Vigilante en segundo plano (multi-host):
@@ -222,15 +223,17 @@ async function sendDigestIfDue(cfg, hosts, names, sede) {
     }
   }
 
-  // Máquinas de PVE sin ninguna copia en ningún host PBS
+  // Máquinas de PVE sin ninguna copia en ningún host PBS (excluye plantillas y las
+  // marcadas como "sin copia necesaria")
   let unprotected = [];
   try {
     if (!blocks.unprotected) throw new Error('skip');
     const pve = getDefaultPve();
     if (pve) {
+      const excluded = excludedSet();
       const guests = await pveGuests(pve);
       unprotected = (guests || [])
-        .filter((g) => !g.template && !protectedIds.has(String(g.vmid)))
+        .filter((g) => !g.template && !protectedIds.has(String(g.vmid)) && !excluded.has(String(g.vmid)))
         .map((g) => ({ vmid: g.vmid, name: g.name || '' }));
     }
   } catch { /* ignore */ }

@@ -256,7 +256,7 @@ function AppShell({ user, onLogout }) {
 
           {/* key={activeId} fuerza recargar los datos al cambiar de host */}
           <div key={activeId}>
-            {effectiveView === 'dashboard' && <Dashboard goTo={setView} />}
+            {effectiveView === 'dashboard' && <Dashboard goTo={setView} user={user} />}
             {effectiveView === 'backups' && <Backups />}
             {effectiveView === 'restore' && <Restore goTo={setView} />}
             {effectiveView === 'jobs' && <Jobs />}

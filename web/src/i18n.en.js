@@ -583,6 +583,13 @@ export const EN = {
   'Máquinas sin proteger': 'Unprotected machines',
   'más': 'more',
   'Máquinas de Proxmox VE sin ninguna copia en este PBS.': 'Proxmox VE machines with no backup on this PBS.',
+  'no requiere copia': 'no backup needed',
+  'Marcar como sin copia necesaria (no volverá a avisar)': "Mark as no backup needed (won't alert again)",
+  'Sin copia necesaria': 'No backup needed',
+  'Excluidas de las alertas de «sin proteger» (panel, email e informes).': 'Excluded from the unprotected alerts (panel, email and reports).',
+  'volver a vigilar': 'watch again',
+  'Marcar VM sin copia': 'Mark VM: no backup',
+  'Reactivar vigilancia de VM': 'Re-watch VM',
   'Vigilancia proactiva': 'Proactive monitoring',
   'Avisos de lo que NO pasa: copias que faltan y discos que se llenan. Aplica a todos los servidores PBS configurados.':
     "Alerts for what is NOT happening: missing backups and filling disks. Applies to every configured PBS server.",
@@ -622,6 +629,14 @@ export const EN = {
   'Prueba de envío a Central': 'Central push test',
   'Desbloquear PBI Central': 'Unlock PBI Central',
   'Bloquear PBI Central': 'Lock PBI Central',
+  'en investigación': 'under research',
+  '🔬 Función en investigación — todavía no disponible.': '🔬 Feature under research — not available yet.',
+  'Reportará el estado de esta sede a un panel central multi-sede. Aún está en desarrollo: la contraseña de desbloqueo no está disponible, así que ':
+    'It will report this site\'s status to a central multi-site panel. Still in development: the unlock password is not available, so ',
+  'esta opción no se puede usar por ahora': 'this option cannot be used yet',
+  '. No hace falta que intentes desbloquearla; se habilitará en una versión futura.':
+    '. No need to try to unlock it; it will be enabled in a future version.',
+  'Acceso de desarrollador': 'Developer access',
   'Importar paquete de sede': 'Import site bundle',
   '¿Tienes el paquete .pbic del panel central? Impórtalo y se configura todo solo:':
     'Have the .pbic bundle from the central panel? Import it and everything is configured for you:',
