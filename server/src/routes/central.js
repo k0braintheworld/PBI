@@ -1,8 +1,11 @@
 import { Router } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import * as store from '../centralStore.js';
 import { sendNow } from '../centralReporter.js';
 import { verifyUnlock, isUnlockConfigured } from '../centralUnlock.js';
 import { isCentralUnlocked, setCentralUnlocked } from '../featureStore.js';
+import { config } from '../config.js';
 import { audit } from '../auditLog.js';
 
 /**
@@ -67,6 +70,40 @@ centralRouter.use((_req, res, next) => {
   if (!isCentralUnlocked()) return res.status(404).json({ error: 'No disponible' });
   next();
 });
+
+// Importar un paquete de enrolamiento (.pbic) emitido por PBI Central: escribe los
+// certificados en disco (clave 600) y rellena la configuración del emisor (URL, site,
+// rutas). Evita tener que copiar ficheros por SSH ni teclear rutas.
+centralRouter.post('/enroll', wrap(async (req, res) => {
+  const b = req.body || {};
+  if (b.kind !== 'pbi-central-enrollment' || !b.cert || !b.key || !b.site?.id) {
+    return res.status(400).json({ error: 'El fichero no es un paquete de sede válido' });
+  }
+  const dir = path.join(config.dataDir, 'central');
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 });
+  const siteId = String(b.site.id).replace(/[^a-zA-Z0-9._-]/g, '_');
+  const certPath = path.join(dir, `${siteId}.crt`);
+  const keyPath = path.join(dir, `${siteId}.key`);
+  const caPath = path.join(dir, 'ca.crt');
+  try {
+    fs.writeFileSync(certPath, b.cert, { mode: 0o644 });
+    fs.writeFileSync(keyPath, b.key, { mode: 0o600 });
+    try { fs.chmodSync(keyPath, 0o600); } catch { /* ignore */ }
+    if (b.ca) fs.writeFileSync(caPath, b.ca, { mode: 0o644 });
+  } catch (e) {
+    return res.status(500).json({ error: `No se pudieron escribir los certificados: ${e.message}` });
+  }
+  const out = store.update({
+    url: b.central?.url || store.getRaw().url,
+    siteId: b.site.id,
+    siteName: b.site.name || b.site.id,
+    clientCertPath: certPath,
+    clientKeyPath: keyPath,
+    caPath: b.ca ? caPath : '',
+  });
+  audit(req, 'central.enroll', '', 'ok', `Paquete importado para ${b.site.id}`);
+  res.json(out);
+}));
 
 centralRouter.get('/', (req, res) => res.json(store.masked()));
 

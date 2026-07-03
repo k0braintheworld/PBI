@@ -48,6 +48,7 @@ const ACTION_LABELS = {
   'central.test': 'Prueba de envío a Central',
   'central.unlock': 'Desbloquear PBI Central',
   'central.lock': 'Bloquear PBI Central',
+  'central.enroll': 'Importar paquete de sede',
 };
 const actionLabel = (code) => ACTION_LABELS[code] || code;
 

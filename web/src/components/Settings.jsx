@@ -118,6 +118,17 @@ function CentralConfig({ onLock }) {
     catch (e) { setTest({ ok: false, error: e.message }); }
   }
 
+  async function importBundle(file) {
+    if (!file) return;
+    setMsg(null);
+    try {
+      const bundle = JSON.parse(await file.text());
+      const out = await api.centralEnroll(bundle);
+      setForm(out);
+      setMsg({ ok: true, text: tr('Paquete importado: certificados guardados y configuración rellenada. Marca «Activado» y guarda.') });
+    } catch (e) { setMsg({ ok: false, text: e.message }); }
+  }
+
   const fld = (label, k, ph, type = 'text') => (
     <div className="field">
       <label>{label}</label>
@@ -144,6 +155,14 @@ function CentralConfig({ onLock }) {
         <p className="muted" style={{ marginTop: 6, fontSize: 12.5 }}>
           {tr('Esta sede enviará su estado agregado (copias, RPO, ocupación, sin proteger) a un panel central. Envío saliente por mTLS; nunca se envían credenciales ni contenido de backups.')}
         </p>
+        <div className="banner" style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 12.5 }}>{tr('¿Tienes el paquete .pbic del panel central? Impórtalo y se configura todo solo:')}</span>
+          <label className="btn sm" style={{ cursor: 'pointer' }}>
+            {tr('Importar paquete de sede…')}
+            <input type="file" accept=".pbic,application/json,.json" style={{ display: 'none' }}
+              onChange={(e) => { importBundle(e.target.files?.[0]); e.target.value = ''; }} />
+          </label>
+        </div>
 
         {fld(tr('URL del central'), 'url', 'https://central.midominio.com:4100')}
         <div className="grid cols-2" style={{ gap: 12 }}>

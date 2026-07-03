@@ -622,6 +622,12 @@ export const EN = {
   'Prueba de envío a Central': 'Central push test',
   'Desbloquear PBI Central': 'Unlock PBI Central',
   'Bloquear PBI Central': 'Lock PBI Central',
+  'Importar paquete de sede': 'Import site bundle',
+  '¿Tienes el paquete .pbic del panel central? Impórtalo y se configura todo solo:':
+    'Have the .pbic bundle from the central panel? Import it and everything is configured for you:',
+  'Importar paquete de sede…': 'Import site bundle…',
+  'Paquete importado: certificados guardados y configuración rellenada. Marca «Activado» y guarda.':
+    'Bundle imported: certificates saved and settings filled in. Tick “Enabled” and save.',
   'No se pudo cargar el estado': 'Could not load the state',
   'bloqueado': 'locked',
   'Función para reportar el estado de esta sede a un panel central multi-sede. Está desactivada y bloqueada por defecto. Introduce la contraseña de desbloqueo para habilitarla.':

@@ -53,6 +53,7 @@ export const api = {
   centralGet: () => req('GET', '/central'),
   centralSave: (body) => req('PUT', '/central', body),
   centralTest: () => req('POST', '/central/test'),
+  centralEnroll: (bundle) => req('POST', '/central/enroll', bundle),
 
   // Mi cuenta (autoservicio)
   accountGet: () => req('GET', '/account'),
