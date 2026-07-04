@@ -46,6 +46,7 @@ export const api = {
   authSetup: (body) => req('POST', '/auth/setup', body),
   authLogout: () => req('POST', '/auth/logout'),
   security: () => req('GET', '/security'),
+  configExport: (password) => req('POST', '/config-backup/export', { password }), // devuelve el sobre cifrado (texto)
   configImport: (body) => req('POST', '/config-backup/import', body),
   setSecurity: (body) => req('PUT', '/security', body),
   // PBI Central (emisor multi-sede)

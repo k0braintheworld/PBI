@@ -8,14 +8,13 @@
 export const EN = {
   'Tras borrar copias, ejecuta el Garbage Collection del datastore para que PBS reclame el espacio físico de los datos ya no referenciados. El GC también es lo que calcula el factor de deduplicación que ves en el panel.': 'After deleting backups, run the datastore Garbage Collection so PBS reclaims the physical space of no-longer-referenced data. The GC is also what computes the deduplication factor shown on the dashboard.',
   'Desactivado': 'Disabled',
-  'Diario (00:00)': 'Daily (00:00)',
-  'Diario 03:00': 'Daily 03:00',
-  'Semanal (dom 03:00)': 'Weekly (Sun 03:00)',
   'Personalizado…': 'Custom…',
+  'Personalizado': 'Custom',
   'GC programado': 'GC scheduled',
   'GC no programado': 'GC not scheduled',
-  'Calendar-event de systemd (p.ej. daily, weekly, sun 03:00)': 'systemd calendar event (e.g. daily, weekly, sun 03:00)',
   'Programar GC': 'Schedule GC',
+  'Día del mes (1-31, separados por coma)': 'Day of month (1-31, comma-separated)',
+  'Indica una programación': 'Set a schedule',
 
   // --- General / común ---
   'Cargando…': 'Loading…',
@@ -632,6 +631,18 @@ export const EN = {
   'Restaurar': 'Restore',
   'Configuración restaurada': 'Configuration restored',
   'ficheros': 'files',
+  'Exporta hosts, usuarios, notificaciones, informes y trabajos en un único fichero cifrado. No incluye el log de auditoría.':
+    'Exports hosts, users, notifications, reports and jobs in a single encrypted file. The audit log is not included.',
+  'Contraseña para cifrar la copia': 'Password to encrypt the backup',
+  'mín. 8 caracteres': 'min. 8 characters',
+  'Cifrando…': 'Encrypting…',
+  'Descargar copia cifrada': 'Download encrypted backup',
+  'La contraseña de cifrado debe tener al menos 8 caracteres.': 'The encryption password must be at least 8 characters.',
+  'Copia cifrada descargada. Guarda la contraseña: sin ella no se puede restaurar.':
+    'Encrypted backup downloaded. Keep the password: without it the backup cannot be restored.',
+  'Introduce la contraseña con la que se cifró esta copia:': 'Enter the password this backup was encrypted with:',
+  'El fichero va cifrado con esa contraseña (scrypt + AES-256-GCM): sin ella no se puede abrir ni restaurar. Guárdala en lugar seguro. Para restaurar en otra instalación, conserva también el SESSION_SECRET de /etc/pbi/pbi.env.':
+    'The file is encrypted with that password (scrypt + AES-256-GCM): without it the backup cannot be opened or restored. Keep it safe. To restore on another install, also keep the SESSION_SECRET from /etc/pbi/pbi.env.',
   'Los secretos van cifrados con la clave derivada de SESSION_SECRET: para restaurar en otra instalación, copia también ese valor de /etc/pbi/pbi.env.':
     'Secrets are encrypted with the key derived from SESSION_SECRET: to restore on another install, copy that value from /etc/pbi/pbi.env too.',
   'Config. informes': 'Report settings',

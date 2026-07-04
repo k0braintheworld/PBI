@@ -9,6 +9,7 @@ import { verifyUnlock, isUnlockConfigured } from '../centralUnlock.js';
 import { isCentralUnlocked, setCentralUnlocked } from '../featureStore.js';
 import { config } from '../config.js';
 import { audit } from '../auditLog.js';
+import { assertSafeTargetUrl } from '../netGuard.js';
 
 /**
  * Configuración del emisor hacia PBI Central. Solo admin (se monta con requireAdmin).
@@ -114,6 +115,7 @@ centralRouter.post('/enroll', wrap(async (req, res) => {
 centralRouter.get('/', (req, res) => res.json(store.masked()));
 
 centralRouter.put('/', wrap(async (req, res) => {
+  if (req.body?.url) assertSafeTargetUrl(req.body.url);
   const out = store.update(req.body || {});
   audit(req, 'central.update', '', 'ok', `Emisor ${out.enabled ? 'activado' : 'desactivado'}${out.url ? ` → ${out.url}` : ''}`);
   res.json(out);

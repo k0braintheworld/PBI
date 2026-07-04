@@ -7,6 +7,7 @@ import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
 import BackupJobs from './BackupJobs.jsx';
 import RestoreJobs from './RestoreJobs.jsx';
+import ScheduleField from './ScheduleField.jsx';
 
 const TABS = [
   { key: 'backups', label: 'Copias de seguridad' },
@@ -21,7 +22,7 @@ const FIELDS = {
   prune: [
     { name: 'id', label: 'ID del job', required: true },
     { name: 'store', label: 'Datastore', required: true },
-    { name: 'schedule', label: 'Programación (calendar event)', placeholder: 'daily, weekly, 02:30…' },
+    { name: 'schedule', label: 'Programación', type: 'schedule', placeholder: 'daily, weekly, 02:30…' },
     { name: 'keep-last', label: 'Mantener últimas', type: 'number' },
     { name: 'keep-daily', label: 'Mantener diarios', type: 'number' },
     { name: 'keep-weekly', label: 'Mantener semanales', type: 'number' },
@@ -32,7 +33,7 @@ const FIELDS = {
   verify: [
     { name: 'id', label: 'ID del job', required: true },
     { name: 'store', label: 'Datastore', required: true },
-    { name: 'schedule', label: 'Programación', placeholder: 'daily' },
+    { name: 'schedule', label: 'Programación', type: 'schedule', placeholder: 'daily' },
     { name: 'outdated-after', label: 'Re-verificar tras (días)', type: 'number' },
     { name: 'ignore-verified', label: 'Ignorar ya verificados', type: 'checkbox' },
     { name: 'comment', label: 'Comentario' },
@@ -42,7 +43,7 @@ const FIELDS = {
     { name: 'store', label: 'Datastore local', required: true },
     { name: 'remote', label: 'Remoto', required: true },
     { name: 'remote-store', label: 'Datastore remoto', required: true },
-    { name: 'schedule', label: 'Programación', placeholder: 'weekly' },
+    { name: 'schedule', label: 'Programación', type: 'schedule', placeholder: 'weekly' },
     { name: 'comment', label: 'Comentario' },
   ],
 };
@@ -249,6 +250,15 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
         )}
         <form onSubmit={save}>
           {fields.map((f) => (
+            f.type === 'schedule' ? (
+              <ScheduleField
+                key={f.name}
+                label={`${tr(f.label)}${f.required ? ' *' : ''}`}
+                value={form[f.name] ?? ''}
+                onChange={(v) => setForm((old) => ({ ...old, [f.name]: v }))}
+                placeholder={f.placeholder}
+              />
+            ) : (
             <div className="field" key={f.name}>
               {f.name === 'store' ? (
                 <>
@@ -279,6 +289,7 @@ function JobModal({ kind, job, onClose, onSaved, onError }) {
                 </>
               )}
             </div>
+            )
           ))}
           <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 16 }}>
             <input type="checkbox" checked={!!form.disable} onChange={set('disable', 'checkbox')} />

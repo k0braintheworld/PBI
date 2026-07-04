@@ -42,9 +42,12 @@ panelAuthRouter.post('/setup', wrap(async (req, res) => {
 panelAuthRouter.post('/login', wrap(async (req, res) => {
   const { username, password, totp } = req.body || {};
   const ipKey = `ip:${req.ip}`;
-  const userKey = `u:${String(username || '').toLowerCase()}`;
+  // Bloqueo por (usuario+IP) en vez de por usuario global: así un atacante remoto
+  // no puede congelar la cuenta de la víctima con intentos desde SU propia IP.
+  // El bloqueo por IP sigue frenando el barrido de contraseñas desde una fuente.
+  const userKey = `u:${String(username || '').toLowerCase()}|${req.ip}`;
 
-  // Bloqueo temporal tras varios intentos fallidos (por usuario o por IP)
+  // Bloqueo temporal tras varios intentos fallidos (por usuario+IP o por IP)
   const wait = lockRemaining(userKey, ipKey);
   if (wait) {
     audit(req, 'auth.login', '', 'fail', `Bloqueado (${wait}s)`, { username: username || '?', role: '?' });
@@ -53,18 +56,23 @@ panelAuthRouter.post('/login', wrap(async (req, res) => {
   }
 
   const u = users.getByUsername(username);
-  if (!u || !users.verifyPassword(password || '', u.salt, u.hash)) {
+  // Si el usuario no existe, se ejecuta un scrypt de señuelo (mismo coste) para no
+  // revelar por temporización qué usuarios son válidos (anti-enumeración).
+  const passOk = u ? users.verifyPassword(password || '', u.salt, u.hash) : users.dummyVerify(password || '');
+  if (!u || !passOk) {
     recordFail(userKey, ipKey);
     audit(req, 'auth.login', '', 'fail', `Usuario: ${username}`, { username: username || '?', role: '?' });
     return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
   }
   if (u.totpEnabled) {
     if (!totp) return res.json({ twofaRequired: true });
-    if (!verifyToken(u.totpSecret, totp)) {
+    const counter = verifyToken(u.totpSecret, totp);
+    if (counter < 0 || counter <= (u.lastTotpCounter ?? -1)) {
       recordFail(userKey, ipKey);
-      audit(req, 'auth.login', '', 'fail', '2FA incorrecto', { username: u.username, role: u.role });
+      audit(req, 'auth.login', '', 'fail', counter >= 0 ? '2FA reutilizado' : '2FA incorrecto', { username: u.username, role: u.role });
       return res.status(401).json({ error: 'Código de verificación incorrecto', twofa: true });
     }
+    users.recordTotpCounter(u.id, counter);
   }
   recordSuccess(userKey, ipKey);
   audit(req, 'auth.login', '', 'ok', '', { username: u.username, role: u.role });

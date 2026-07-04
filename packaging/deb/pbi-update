@@ -18,12 +18,12 @@ rm -f "$REQ"   # consumir la solicitud (evita reprocesos)
 {
   echo "== $(date) =="
 
-  # Solo releases oficiales de PBI
-  case "$URL" in
-    https://github.com/k0braintheworld/PBI/releases/download/*.deb) : ;;
-    *) echo "URL no permitida: $URL"; exit 2 ;;
-  esac
-  echo "$SHA" | grep -Eq '^[a-fA-F0-9]{64}$' || { echo "Checksum con formato no valido"; exit 2; }
+  # Solo releases oficiales de PBI. Validacion ANCLADA (misma que la del panel):
+  # exactamente un segmento de tag y un nombre de fichero .deb, sin '/' extra, para
+  # que el lado root no sea mas permisivo que la capa web.
+  printf '%s' "$URL" | grep -Eq '^https://github\.com/k0braintheworld/PBI/releases/download/[^/]+/[A-Za-z0-9._+-]+\.deb$' \
+    || { echo "URL no permitida: $URL"; exit 2; }
+  printf '%s' "$SHA" | grep -Eq '^[a-fA-F0-9]{64}$' || { echo "Checksum con formato no valido"; exit 2; }
 
   rm -f "$DEB"
   if command -v curl >/dev/null 2>&1; then

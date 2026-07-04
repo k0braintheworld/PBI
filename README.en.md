@@ -60,6 +60,10 @@ Guided restore through Proxmox VE, without touching the console:
 - **PBS jobs**: *prune* (retention), *verify* (integrity) and *sync* (offsite replica) —
   list, create, edit, delete and **run manually**, with templates and an explanation of
   each type.
+- **Guided scheduling**: every schedulable task (backups, *prune*, *verify*, *sync* and
+  *Garbage Collection*) uses a **day-and-time picker** —Daily / Weekly / Monthly with
+  day(s) and time, or a custom expression— so you don't have to remember systemd
+  *calendar event* syntax.
 
 ### Task monitor
 History with **auto-refresh** every 5 s, an "only running" filter and a per-task **log
@@ -246,24 +250,35 @@ the storages, uncheck "Privilege Separation" when creating it or assign it a rol
   password. The key is derived from `SESSION_SECRET`, which in the `.deb` lives in
   `/etc/pbi/pbi.env`, **separate** from the data in `/var/lib/pbi` — a copy of the data
   directory is not enough to decrypt them. *(If you change `SESSION_SECRET`, stored
-  secrets must be re-entered.)*
+  secrets must be re-entered; the panel logs a warning if a secret can't be decrypted
+  instead of using it as-is.)*
 - The API **never** returns secrets (they are masked).
-- Sessions are signed in an `httpOnly` cookie; optional **TOTP 2FA** per user.
+- Sessions are signed in an `httpOnly` cookie; optional **TOTP 2FA** per user, with
+  **replay protection** (a used TOTP code can't be reused). **Changing your own password
+  invalidates your other sessions.**
 - **Auto-logout after inactivity**, configurable (30 min by default) under
   *Settings → Preferences → Security*.
-- **Brute-force protection**: temporary login (and 2FA) lockout after several failed
-  attempts, per user and per IP.
+- **Brute-force protection**: temporary login lockout (per user+IP, so an attacker can't
+  freeze someone else's account) and an attempt limit when enabling/disabling 2FA. Login
+  **does not leak by timing** whether a user exists.
 - **CSRF defense** (a custom header is required on state-changing requests) and
   **security headers** (`X-Content-Type-Options`, `X-Frame-Options`, `Referrer-Policy`).
   The server **refuses to start** with a default/unset `SESSION_SECRET`.
+- **Anti-SSRF guardrail** on the targets you configure (PBS/PVE hosts, Central collector):
+  `http`/`https` is required and the link-local metadata range (`169.254.0.0/16`) is
+  blocked; servers on your local network (RFC-1918/loopback) are unaffected.
 - **HTTPS** with a self-signed certificate on `.deb` install (replaceable with your own
   in `/etc/pbi/pbi.env`).
 - Data files are created with `600` permissions.
-- **Configuration backup**: export/restore the whole configuration (hosts, users,
-  notifications, reports, jobs) from *Preferences* (admin only).
-- **No privilege escalation**: the panel process (`pbi.service`) runs with
-  `NoNewPrivileges=true`. Updates are applied by a separate system service
-  (`pbi-update.service`) triggered by a file — the web process never touches sudo.
+- **Encrypted configuration backup**: export/restore the whole configuration (hosts,
+  users, notifications, reports, jobs) from *Preferences* (admin only). The file is
+  **encrypted with a password you choose** (scrypt + AES-256-GCM): not explorable without
+  it, and the same password is required to restore.
+- **No privilege escalation**: the panel process (`pbi.service`) runs with strong
+  **systemd hardening** (`NoNewPrivileges`, `ProtectSystem=strict`, read-only code, no
+  capabilities, system-call filter). Updates are applied by a separate system service
+  (`pbi-update.service`) triggered by a file, which validates the official URL and the
+  SHA-256 — the web process never touches sudo.
 
 ## 🗂️ Project structure
 

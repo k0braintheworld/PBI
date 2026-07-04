@@ -5,6 +5,7 @@ import { api, fmtDate } from '../api.js';
 import { Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
+import ScheduleField from './ScheduleField.jsx';
 
 const KEEP_FIELDS = [
   ['last', 'Últimas'], ['daily', 'Diarias'], ['weekly', 'Semanales'],
@@ -199,6 +200,7 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
     e.preventDefault();
     if (!form.selAll && form.vmids.size === 0) { onError(tr('Selecciona al menos una máquina o marca «Todas»')); return; }
     if (!form.storage) { onError(tr('Selecciona el almacenamiento destino')); return; }
+    if (!form.schedule.trim()) { onError(tr('Indica una programación')); return; }
     setBusy(true);
     try {
       const prune = KEEP_FIELDS.map(([k]) => (form.keep[k] ? `keep-${k}=${form.keep[k]}` : null)).filter(Boolean).join(',');
@@ -249,9 +251,7 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
           </div>
 
           <div className="row">
-            <div className="field"><label>{tr('Programación (calendar event)')}</label>
-              <input className="input" value={form.schedule} placeholder="02:00 · sun 03:00 · mon..fri 22:00" onChange={(e) => set('schedule', e.target.value)} required />
-            </div>
+            <ScheduleField label={tr('Programación')} value={form.schedule} onChange={(v) => set('schedule', v)} placeholder="02:00 · sun 03:00 · mon..fri 22:00" />
             <div className="field"><label>{tr('Modo')}</label>
               <select value={form.mode} onChange={(e) => set('mode', e.target.value)}>
                 <option value="snapshot">{tr('snapshot (en caliente)')}</option>

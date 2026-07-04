@@ -45,7 +45,13 @@ export function decryptSecret(value) {
     decipher.setAuthTag(tag);
     return Buffer.concat([decipher.update(ct), decipher.final()]).toString('utf8');
   } catch {
-    return value; // no se pudo descifrar (clave distinta): devuelve el valor crudo
+    // No se pudo descifrar (SESSION_SECRET distinto/rotado o dato corrupto). NUNCA
+    // devolver el texto cifrado como si fuera el secreto: se entregaría basura a
+    // PBS/PVE/SMTP. Se avisa de forma visible y se devuelve vacío para que la
+    // operación falle limpiamente y el operador reintroduzca la credencial.
+    console.warn('[secretCrypto] No se pudo descifrar un secreto guardado. '
+      + '¿Ha cambiado SESSION_SECRET? Reintroduce las credenciales afectadas (host/PVE/SMTP).');
+    return '';
   }
 }
 

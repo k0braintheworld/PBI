@@ -254,13 +254,40 @@ function Preferences({ isAdmin }) {
   }
 
   const [impMsg, setImpMsg] = useState(null);
+  const [expPwd, setExpPwd] = useState('');
+  const [expBusy, setExpBusy] = useState(false);
+
+  async function exportConfig() {
+    if (expPwd.length < 8) { setImpMsg({ ok: false, text: tr('La contraseña de cifrado debe tener al menos 8 caracteres.') }); return; }
+    setImpMsg(null); setExpBusy(true);
+    try {
+      const blobText = await api.configExport(expPwd);
+      const url = URL.createObjectURL(new Blob([blobText], { type: 'application/octet-stream' }));
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `pbi-config-${new Date().toISOString().slice(0, 10)}.pbibak`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+      setExpPwd('');
+      setImpMsg({ ok: true, text: tr('Copia cifrada descargada. Guarda la contraseña: sin ella no se puede restaurar.') });
+    } catch (e) {
+      setImpMsg({ ok: false, text: e.message });
+    } finally { setExpBusy(false); }
+  }
+
   async function importConfig(file) {
     if (!file) return;
     setImpMsg(null);
     try {
       const data = JSON.parse(await file.text());
+      let body = data;
+      if (data?.kind === 'pbi-config-backup-enc') {
+        const pwd = window.prompt(tr('Introduce la contraseña con la que se cifró esta copia:'));
+        if (pwd == null) return;
+        body = { ...data, password: pwd };
+      }
       if (!(await confirmDialog({ message: tr('¿Restaurar la configuración desde esta copia? Sobrescribirá hosts, usuarios, notificaciones y trabajos.'), danger: true, confirmLabel: tr('Restaurar') }))) return;
-      const r = await api.configImport(data);
+      const r = await api.configImport(body);
       setImpMsg({ ok: true, text: `${tr('Configuración restaurada')} (${(r.written || []).length} ${tr('ficheros')}).` });
     } catch (e) {
       setImpMsg({ ok: false, text: e.message });
@@ -302,13 +329,18 @@ function Preferences({ isAdmin }) {
         <div className="card card-pad" style={{ maxWidth: 520, marginTop: 16 }}>
           <h3 style={{ marginTop: 0 }}>{tr('Copia de seguridad de la configuración')}</h3>
           <p className="muted" style={{ fontSize: 12.5, marginTop: 4 }}>
-            {tr('Exporta hosts, usuarios, notificaciones, informes y trabajos en un único fichero. No incluye el log de auditoría.')}
+            {tr('Exporta hosts, usuarios, notificaciones, informes y trabajos en un único fichero cifrado. No incluye el log de auditoría.')}
           </p>
-          <div className="btn-row">
-            <a className="btn primary" href="/api/config-backup/export">{tr('Descargar configuración')}</a>
+          <label style={{ fontSize: 13, color: 'var(--text-2)' }}>{tr('Contraseña para cifrar la copia')}</label>
+          <div style={{ display: 'flex', gap: 8, marginTop: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+            <input className="input" type="password" style={{ maxWidth: 240 }} placeholder={tr('mín. 8 caracteres')}
+              value={expPwd} autoComplete="new-password" onChange={(e) => setExpPwd(e.target.value)} />
+            <button className="btn primary" onClick={exportConfig} disabled={expBusy || expPwd.length < 8}>
+              {expBusy ? tr('Cifrando…') : tr('Descargar copia cifrada')}
+            </button>
             <label className="btn" style={{ cursor: 'pointer' }}>
               {tr('Restaurar desde fichero…')}
-              <input type="file" accept="application/json,.json" style={{ display: 'none' }}
+              <input type="file" accept=".pbibak,application/json,application/octet-stream,.json" style={{ display: 'none' }}
                 onChange={(e) => { importConfig(e.target.files?.[0]); e.target.value = ''; }} />
             </label>
           </div>
@@ -316,7 +348,7 @@ function Preferences({ isAdmin }) {
             ? <div className="banner" style={{ marginTop: 10 }}>✓ {impMsg.text}</div>
             : <div className="error-box" style={{ marginTop: 10 }}>✕ {impMsg.text}</div>)}
           <p className="muted" style={{ fontSize: 11.5, marginTop: 10 }}>
-            {tr('Los secretos van cifrados con la clave derivada de SESSION_SECRET: para restaurar en otra instalación, copia también ese valor de /etc/pbi/pbi.env.')}
+            {tr('El fichero va cifrado con esa contraseña (scrypt + AES-256-GCM): sin ella no se puede abrir ni restaurar. Guárdala en lugar seguro. Para restaurar en otra instalación, conserva también el SESSION_SECRET de /etc/pbi/pbi.env.')}
           </p>
         </div>
       )}

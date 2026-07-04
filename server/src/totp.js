@@ -48,16 +48,21 @@ function hotp(secretBuf, counter) {
   return (code % 1_000_000).toString().padStart(6, '0');
 }
 
-/** Verifica un código de 6 dígitos con tolerancia de ±window periodos. */
+/**
+ * Verifica un código de 6 dígitos con tolerancia de ±window periodos.
+ * Devuelve el CONTADOR (número de periodo) con el que casó, o -1 si no es válido.
+ * El contador permite al llamante rechazar la reutilización de un código ya usado
+ * (anti-replay): basta con guardar el último contador aceptado y exigir uno mayor.
+ */
 export function verifyToken(secret, token, window = 1) {
   const t = String(token || '').replace(/\s/g, '');
-  if (!secret || !/^\d{6}$/.test(t)) return false;
+  if (!secret || !/^\d{6}$/.test(t)) return -1;
   const secretBuf = base32Decode(secret);
   const counter = Math.floor(Date.now() / 1000 / 30);
   for (let w = -window; w <= window; w++) {
-    if (crypto.timingSafeEqual(Buffer.from(hotp(secretBuf, counter + w)), Buffer.from(t))) return true;
+    if (crypto.timingSafeEqual(Buffer.from(hotp(secretBuf, counter + w)), Buffer.from(t))) return counter + w;
   }
-  return false;
+  return -1;
 }
 
 /** URI otpauth:// para el QR. */

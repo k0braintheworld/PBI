@@ -54,7 +54,11 @@ reportsRouter.get('/summary', wrap(async (req, res) => {
 
 function toCsv(rows, columns) {
   const esc = (v) => {
-    const s = v == null ? '' : String(v);
+    let s = v == null ? '' : String(v);
+    // Anti inyección de fórmulas: una celda que empiece por = + - @ (o tab/CR) la
+    // interpretaría Excel/Sheets como fórmula. Se antepone un apóstrofo para
+    // neutralizarla sin alterar el valor visible.
+    if (/^[=+\-@\t\r]/.test(s)) s = `'${s}`;
     return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
   };
   const header = columns.map((c) => esc(c.label)).join(',');

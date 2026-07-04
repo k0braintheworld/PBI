@@ -42,6 +42,15 @@ export function verifyPassword(password, salt, hash) {
   return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+// Salt fijo de señuelo: cuando el usuario NO existe se ejecuta igualmente un
+// scrypt (mismo coste) para que el tiempo de respuesta del login no revele si el
+// usuario es válido (anti-enumeración por temporización). Su resultado se descarta.
+const DUMMY_SALT = 'pbi-login-timing-equalizer';
+export function dummyVerify(password) {
+  try { crypto.scryptSync(String(password || ''), DUMMY_SALT, 64); } catch { /* ignore */ }
+  return false;
+}
+
 export const ROLES = ['admin', 'operator', 'viewer'];
 const normRole = (r) => (ROLES.includes(r) ? r : 'operator');
 
@@ -86,7 +95,7 @@ export function updateUser(id, { role, password, username, resetTotp }) {
     const { salt, hash } = hashPassword(password);
     u.salt = salt; u.hash = hash;
   }
-  if (resetTotp) { delete u.totpSecret; delete u.totpPending; u.totpEnabled = false; }
+  if (resetTotp) { delete u.totpSecret; delete u.totpPending; delete u.lastTotpCounter; u.totpEnabled = false; }
   writeAll(users);
   return mask(u);
 }
@@ -143,9 +152,25 @@ export function disable2fa(id) {
   if (!u) throw httpErr(404, 'Usuario no encontrado');
   delete u.totpSecret;
   delete u.totpPending;
+  delete u.lastTotpCounter;
   u.totpEnabled = false;
   writeAll(users);
   return { ok: true };
+}
+
+/**
+ * Registra el último contador TOTP aceptado (anti-replay). Un código solo se
+ * acepta si su contador es estrictamente mayor que el último guardado, de modo
+ * que un código ya usado no se puede reutilizar dentro de su ventana de validez.
+ */
+export function recordTotpCounter(id, counter) {
+  const users = readAll();
+  const u = users.find((x) => x.id === id);
+  if (!u) return;
+  if (typeof counter === 'number' && counter > (u.lastTotpCounter ?? -1)) {
+    u.lastTotpCounter = counter;
+    writeAll(users);
+  }
 }
 
 function httpErr(status, message) { const e = new Error(message); e.status = status; return e; }

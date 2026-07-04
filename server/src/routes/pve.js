@@ -6,6 +6,7 @@ import * as pve from '../pveService.js';
 import { pveStream } from '../pveClient.js';
 import * as restoreStore from '../restoreStore.js';
 import { audit } from '../auditLog.js';
+import { assertSafeTargetUrl } from '../netGuard.js';
 
 export const pveRouter = Router();
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
@@ -21,12 +22,14 @@ pveRouter.get('/', (req, res) => res.json(store.listPve()));
 
 pveRouter.post('/', wrap(async (req, res) => {
   if (!req.body.host) return res.status(400).json({ error: 'Falta el campo host' });
+  assertSafeTargetUrl(req.body.host);
   const p = store.addPve(req.body);
   audit(req, 'pve.create', `${p.name || ''} (${req.body.host})`, 'ok');
   res.json(p);
 }));
 
 pveRouter.put('/:id', wrap(async (req, res) => {
+  if (req.body.host) assertSafeTargetUrl(req.body.host);
   const u = store.updatePve(req.params.id, req.body);
   if (!u) return res.status(404).json({ error: 'Conexión PVE no encontrada' });
   audit(req, 'pve.update', u.name || req.params.id, 'ok');

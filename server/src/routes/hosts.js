@@ -6,6 +6,7 @@ import { authForHost, invalidateTicket } from '../authResolver.js';
 import { pbsCall } from '../pbsClient.js';
 import { requireOperator } from '../session.js';
 import { audit } from '../auditLog.js';
+import { assertSafeTargetUrl } from '../netGuard.js';
 
 export const hostsRouter = Router();
 
@@ -22,6 +23,7 @@ hostsRouter.get('/', (req, res) => {
 // Crear host
 hostsRouter.post('/', requireOperator, wrap(async (req, res) => {
   if (!req.body.host) return res.status(400).json({ error: 'Falta el campo host' });
+  assertSafeTargetUrl(req.body.host);
   const h = store.addHost(req.body);
   audit(req, 'host.create', `${h.name || ''} (${req.body.host})`, 'ok');
   res.json(h);
@@ -29,6 +31,7 @@ hostsRouter.post('/', requireOperator, wrap(async (req, res) => {
 
 // Actualizar host
 hostsRouter.put('/:id', requireOperator, wrap(async (req, res) => {
+  if (req.body.host) assertSafeTargetUrl(req.body.host);
   const updated = store.updateHost(req.params.id, req.body);
   if (!updated) return res.status(404).json({ error: 'Host no encontrado' });
   invalidateTicket(req.params.id); // por si cambió usuario/contraseña

@@ -5,6 +5,7 @@ import { api, fmtBytes, fmtDate, fmtAgo } from '../api.js';
 import { useAsync, Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
+import ScheduleField from './ScheduleField.jsx';
 
 const keyOf = (g) => `${g.store}/${g.type}/${g.id}`;
 
@@ -195,33 +196,21 @@ function GcStore({ store, onRun, t }) {
     finally { setBusy(false); }
   }
 
-  const PRESETS = [
-    ['', t('Desactivado')],
-    ['daily', t('Diario (00:00)')],
-    ['*-*-* 03:00', t('Diario 03:00')],
-    ['sun 03:00', t('Semanal (dom 03:00)')],
-  ];
-  const isPreset = PRESETS.some((p) => p[0] === val);
-
   return (
-    <div className="flex-between" style={{ padding: '10px 0', borderTop: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
-      <div>
-        <b className="mono">{store}</b>
-        <div className="muted" style={{ fontSize: 11.5 }}>
-          {schedule === null ? '…' : schedule ? <>{t('GC programado')}: <b className="mono">{schedule}</b></> : t('GC no programado')}
+    <div style={{ padding: '10px 0', borderTop: '1px solid var(--border)' }}>
+      <div className="flex-between" style={{ gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div>
+          <b className="mono">{store}</b>
+          <div className="muted" style={{ fontSize: 11.5 }}>
+            {schedule === null ? '…' : schedule ? <>{t('GC programado')}: <b className="mono">{schedule}</b></> : t('GC no programado')}
+          </div>
         </div>
-      </div>
-      <div className="btn-row" style={{ alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-        <select className="input" style={{ width: 170 }} value={isPreset ? val : '__custom'}
-          onChange={(e) => { if (e.target.value !== '__custom') setVal(e.target.value); }}>
-          {PRESETS.map(([v, l]) => <option key={v || 'off'} value={v}>{l}</option>)}
-          <option value="__custom">{t('Personalizado…')}</option>
-        </select>
-        <input className="input" style={{ width: 140 }} placeholder="mon..fri 02:30" value={val}
-          onChange={(e) => setVal(e.target.value)} title={t('Calendar-event de systemd (p.ej. daily, weekly, sun 03:00)')} />
-        <button className="btn sm" onClick={save} disabled={busy || val === (schedule ?? '')}>{busy ? t('Guardando…') : t('Guardar')}</button>
         <button className="btn sm ghost" onClick={onRun}><Icon.broom width={13} height={13} /> {t('Ejecutar ahora')}</button>
-        {saved && <span className="muted" style={{ fontSize: 11.5 }}>{saved}</span>}
+      </div>
+      <div className="btn-row" style={{ alignItems: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+        <ScheduleField value={val} onChange={setVal} allowOff placeholder="mon..fri 02:30" />
+        <button className="btn sm" style={{ marginBottom: 14 }} onClick={save} disabled={busy || val === (schedule ?? '')}>{busy ? t('Guardando…') : t('Guardar')}</button>
+        {saved && <span className="muted" style={{ fontSize: 11.5, marginBottom: 14 }}>{saved}</span>}
       </div>
     </div>
   );

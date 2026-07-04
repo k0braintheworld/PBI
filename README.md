@@ -63,6 +63,10 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
 - **Jobs de PBS**: *prune* (retención), *verify* (integridad) y *sync* (réplica
   externa) — listar, crear, editar, eliminar y **lanzar manualmente**, con plantillas
   y una explicación de cada tipo.
+- **Programación guiada**: todas las tareas programables (copias, *prune*, *verify*,
+  *sync* y *Garbage Collection*) usan un **selector de día y hora** —Diario / Semanal /
+  Mensual con día(s) y hora, o expresión personalizada— sin tener que recordar la
+  sintaxis de *calendar event* de systemd.
 
 ### Monitor de tareas
 Historial con **auto-refresco** cada 5 s, filtro «solo en ejecución» y visor de **log por
@@ -247,25 +251,37 @@ almacenamientos, desmarca «Separación de privilegios» al crearlo o asígnale 
   SMTP. La clave se deriva del `SESSION_SECRET`, que en el `.deb` vive en
   `/etc/pbi/pbi.env`, **separado** de los datos en `/var/lib/pbi` — una copia del
   directorio de datos no basta para descifrarlos. *(Si cambias `SESSION_SECRET`, los
-  secretos ya guardados habrá que reintroducirlos.)*
+  secretos ya guardados habrá que reintroducirlos; el panel avisa en el log si un
+  secreto no se puede descifrar en vez de usarlo tal cual.)*
 - La API **nunca** devuelve secretos (se enmascaran).
-- **Sesiones** firmadas en cookie `httpOnly`; **2FA TOTP** opcional por usuario.
+- **Sesiones** firmadas en cookie `httpOnly`; **2FA TOTP** opcional por usuario, con
+  **protección anti-reutilización** del código (un TOTP ya usado no vale de nuevo).
+  **Cambiar la propia contraseña cierra el resto de sesiones** del usuario.
 - **Cierre de sesión por inactividad** configurable (por defecto 30 min) en
   *Configuración → Preferencias → Seguridad*.
-- **Protección anti-fuerza-bruta**: bloqueo temporal del login (y del 2FA) tras varios
-  intentos fallidos, por usuario e IP.
+- **Protección anti-fuerza-bruta**: bloqueo temporal del login (por usuario+IP, para no
+  poder congelar una cuenta ajena) y límite de intentos al activar/desactivar el 2FA.
+  El login **no revela por temporización** si un usuario existe.
 - **Defensa CSRF** (cabecera personalizada obligatoria en peticiones que modifican estado)
   y **cabeceras de seguridad** (`X-Content-Type-Options`, `X-Frame-Options`,
   `Referrer-Policy`). El servidor **se niega a arrancar** con un `SESSION_SECRET` por
   defecto/sin configurar.
+- **Guardrail anti-SSRF** en los destinos que configuras (hosts PBS/PVE, colector
+  Central): se exige `http`/`https` y se bloquea el rango link-local de metadatos
+  (`169.254.0.0/16`); no afecta a servidores en tu red local (RFC-1918/loopback).
 - **HTTPS** con certificado autofirmado en la instalación `.deb` (sustituible por uno
   propio en `/etc/pbi/pbi.env`).
 - Los ficheros de datos se crean con permisos `600`.
-- **Copia de seguridad de la configuración**: exporta/restaura toda la configuración
-  (hosts, usuarios, notificaciones, informes, trabajos) desde *Preferencias* (solo admin).
+- **Copia de seguridad de la configuración cifrada**: exporta/restaura toda la
+  configuración (hosts, usuarios, notificaciones, informes, trabajos) desde
+  *Preferencias* (solo admin). El fichero va **cifrado con una contraseña que eliges tú**
+  (scrypt + AES-256-GCM): no es explorable sin ella y al restaurar se pide la misma.
 - **Sin escalada de privilegios**: el proceso del panel (`pbi.service`) se ejecuta con
-  `NoNewPrivileges=true`. Las actualizaciones las aplica un servicio separado de sistema
-  (`pbi-update.service`) activado por fichero, sin que el proceso web toque nunca sudo.
+  fuerte **endurecimiento de systemd** (`NoNewPrivileges`, `ProtectSystem=strict`,
+  código de solo lectura, sin capacidades, filtro de llamadas al sistema). Las
+  actualizaciones las aplica un servicio separado de sistema (`pbi-update.service`)
+  activado por fichero, que valida la URL oficial y el SHA-256, sin que el proceso web
+  toque nunca sudo.
 
 ## 🗂️ Estructura del proyecto
 

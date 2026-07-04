@@ -15,12 +15,32 @@ ExecStart=/opt/pbi/runtime/bin/node /opt/pbi/server/src/index.js
 Restart=on-failure
 RestartSec=5
 
-# Endurecimiento básico
+# Endurecimiento
 NoNewPrivileges=true
-ProtectSystem=full
+ProtectSystem=strict
 ProtectHome=true
 ReadWritePaths=/var/lib/pbi
+ReadOnlyPaths=/opt/pbi
 PrivateTmp=true
+PrivateDevices=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+# (Sin MemoryDenyWriteExecute: rompería el JIT de V8/Node.)
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+UMask=0077
 
 [Install]
 WantedBy=multi-user.target
