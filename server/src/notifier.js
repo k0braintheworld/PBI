@@ -3,12 +3,14 @@
 import { listHostsRaw } from './hostStore.js';
 import { authForHost } from './authResolver.js';
 import { listTasks, getTaskLog, listDatastores, listSnapshots, getDatastoreStatus } from './pbsService.js';
-import { getDefaultPve } from './pveStore.js';
-import { pveGuests } from './pveService.js';
+import { getDefaultPve, listPveRaw } from './pveStore.js';
+import { pveGuests, pveBackupJobs } from './pveService.js';
 import * as notifyStore from './notifyStore.js';
 import { getRaw as getReportCfg } from './reportStore.js';
-import { sendMail, buildTaskEmail, buildRpoEmail, buildStorageEmail, buildDigestEmail } from './mailer.js';
+import { sendMail, buildTaskEmail, buildRpoEmail, buildStorageEmail, buildDigestEmail, buildGroupSummaryEmail } from './mailer.js';
 import { excludedSet } from './excludedVms.js';
+import * as groupStore from './taskGroupStore.js';
+import { ingest as ingestGroups, collectDue, matchesAnyMember } from './taskGroups.js';
 
 /**
  * Vigilante en segundo plano (multi-host):
@@ -92,7 +94,7 @@ async function storageUsage(auth) {
 
 // --- Notificación de tareas finalizadas (por host) --------------------------
 
-async function pollTasksForHost(cfg, host, seenMap, names, sede) {
+async function pollTasksForHost(cfg, host, seenMap, names, sede, groupCtx) {
   const now = Math.floor(Date.now() / 1000);
   let lastSeen = seenMap[host.id];
   // Primera vez para este host: fijar línea base y no inundar con tareas viejas.
@@ -105,11 +107,19 @@ async function pollTasksForHost(cfg, host, seenMap, names, sede) {
     .sort((a, b) => (a.endtime || 0) - (b.endtime || 0));
   if (!fresh.length) return;
 
+  // Alimenta el evaluador de grupos con TODAS las tareas nuevas de este host.
+  if (groupCtx?.groups.length) {
+    ingestGroups({ groups: groupCtx.groups, cycles: groupCtx.cycles, hostId: host.id, tasks: fresh, now, expectedFor: groupCtx.expectedFor });
+  }
+
   let maxEnd = lastSeen;
   for (const t of fresh) {
     maxEnd = Math.max(maxEnd, t.endtime);
     const ok = isOk(t.status);
     if ((ok && !cfg.notifyOk) || (!ok && !cfg.notifyFail)) continue;
+    // Si la tarea pertenece a un grupo, no se envía email individual: la cubre el
+    // resumen agrupado del grupo.
+    if (groupCtx?.groups.length && matchesAnyMember(groupCtx.groups, t, host.id, groupCtx.expectedFor)) continue;
     const key = `${host.id}:${t.upid}`;
     if (notified.has(key)) continue;
     try {
@@ -122,6 +132,43 @@ async function pollTasksForHost(cfg, host, seenMap, names, sede) {
     }
   }
   if (maxEnd > lastSeen) seenMap[host.id] = maxEnd;
+}
+
+/**
+ * Resuelve, para los miembros de tipo backup de los grupos habilitados, el
+ * conjunto de VMIDs esperados (a partir del job de copia en PVE). Devuelve un
+ * mapa memberKey -> [vmid]. Un job `all` se expande al inventario de invitados.
+ */
+async function resolveBackupExpected(groups) {
+  const map = {};
+  const backupMembers = groups.flatMap((g) => g.members).filter((m) => m.kind === 'backup');
+  if (!backupMembers.length) return map;
+
+  const pves = listPveRaw();
+  const jobCache = new Map(); // pveId -> [jobs]
+  const guestCache = new Map(); // pveId -> [vmid]
+  for (const m of backupMembers) {
+    const pve = pves.find((p) => p.id === m.scope);
+    if (!pve) continue;
+    try {
+      if (!jobCache.has(pve.id)) jobCache.set(pve.id, (await pveBackupJobs(pve)) || []);
+      const job = jobCache.get(pve.id).find((j) => String(j.id) === String(m.ref));
+      if (!job) continue;
+      const exclude = new Set(String(job.exclude || '').split(',').map((s) => s.trim()).filter(Boolean));
+      let vmids;
+      if (job.all === 1 || job.all === '1') {
+        if (!guestCache.has(pve.id)) {
+          const guests = await pveGuests(pve).catch(() => []);
+          guestCache.set(pve.id, (guests || []).filter((g) => !g.template).map((g) => String(g.vmid)));
+        }
+        vmids = guestCache.get(pve.id);
+      } else {
+        vmids = String(job.vmid || '').split(',').map((s) => s.trim()).filter(Boolean);
+      }
+      map[groupStore.memberKey(m)] = vmids.filter((v) => !exclude.has(String(v)));
+    } catch { /* PVE no disponible: sin conjunto esperado (el grupo esperará al maxWait) */ }
+  }
+  return map;
 }
 
 // --- Avisos proactivos (RPO + almacenamiento) --------------------------------
@@ -266,11 +313,40 @@ async function poll() {
     const seenMap = (st.lastSeen && typeof st.lastSeen === 'object') ? { ...st.lastSeen } : {};
     if (typeof st.lastSeen === 'number') for (const h of hosts) seenMap[h.id] = seenMap[h.id] || st.lastSeen;
 
+    // Contexto de grupos de tareas (resumen agrupado). Se resuelven los VMIDs
+    // esperados de los miembros de backup una vez por sondeo.
+    const enabledGroups = groupStore.enabledGroups();
+    let groupCtx = null;
+    if (enabledGroups.length) {
+      const expectedMap = await resolveBackupExpected(enabledGroups);
+      groupCtx = {
+        groups: enabledGroups,
+        cycles: groupStore.getCycles(),
+        expectedFor: (m) => expectedMap[groupStore.memberKey(m)] || [],
+      };
+    }
+
     for (const host of hosts) {
-      try { await pollTasksForHost(cfg, host, seenMap, names, sede); }
+      try { await pollTasksForHost(cfg, host, seenMap, names, sede, groupCtx); }
       catch (e) { console.error(`[notifier] ${host.name || host.id}:`, e.message); }
     }
     notifyStore.setState({ lastSeen: seenMap });
+
+    // Envía los resúmenes de grupo que estén listos (completos o vencidos) y
+    // persiste el estado de los ciclos.
+    if (groupCtx) {
+      try {
+        const now = Math.floor(Date.now() / 1000);
+        const due = collectDue({ groups: groupCtx.groups, cycles: groupCtx.cycles, now });
+        for (const { group, summary } of due) {
+          if (!group.notifyOk && summary.totFail === 0) continue; // "solo si algo falla" y no hubo fallos
+          try { await sendMail(cfg.smtp, buildGroupSummaryEmail(summary, { sede, names })); }
+          catch (e) { console.error('[notifier] error enviando resumen de grupo:', e.message); }
+        }
+      } finally {
+        groupStore.setCycles(groupCtx.cycles);
+      }
+    }
 
     tick += 1;
     if (tick % ALERT_EVERY_TICKS === 1) await checkAlerts(cfg, hosts, names, sede);

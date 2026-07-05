@@ -98,6 +98,13 @@ includes:
 - **Backup type**: PBS category (VM / CT / Host) and Full/Incremental mode when determinable from the task log.
 - **Encryption status**: "Encrypted: Yes 🔒 / No" row when the log indicates the backup was encrypted.
 
+**Grouped summary by task groups**: instead of one email per task, you define **groups**
+with specific jobs (PVE backups and PBS verify/prune/sync/GC); when **all** members of a
+group finish —each with success or failure— PBI sends a **single summary email** for the
+group, detailing what succeeded and what failed. A backup job counts as finished when all
+its VMs have an outcome. If some job doesn't run within a configurable **max wait**, a
+partial summary is sent. Jobs included in a group stop notifying individually.
+
 **Proactive monitoring** (alerts for what is NOT happening):
 - **RPO**: alert when a machine has gone more than N hours without a completed backup.
 - **Usage**: alert when a datastore exceeds the configured percentage.

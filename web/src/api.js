@@ -166,6 +166,12 @@ export const api = {
   notifySave: (body) => req('PUT', '/notify', body),
   notifyTest: (body) => req('POST', '/notify/test', body),
   notifySilenceProxmox: (enable) => req('POST', '/notify/silence-proxmox', { enable }),
+  // Grupos de tareas para el resumen agrupado
+  notifyEnabledJobs: () => req('GET', '/notify/enabled-jobs'),
+  notifyGroupsGet: () => req('GET', '/notify/groups'),
+  notifyGroupCreate: (body) => req('POST', '/notify/groups', body),
+  notifyGroupUpdate: (id, body) => req('PUT', `/notify/groups/${id}`, body),
+  notifyGroupDelete: (id) => req('DELETE', `/notify/groups/${id}`),
 
   // Informes
   reportSummary: () => req('GET', '/reports/summary'),

@@ -802,6 +802,172 @@ function NotifySettings() {
           {silence?.loading ? tr('Aplicando…') : form.silenceProxmox ? tr('Aplicar (silenciar Proxmox)') : tr('Aplicar (restaurar Proxmox)')}
         </button>
       </div>
+
+      <TaskGroupsCard />
+    </div>
+  );
+}
+
+/* ===================== Grupos de resumen (email agrupado) ===================== */
+
+const GROUP_KINDS = [
+  ['backup', 'Copias (PVE)'],
+  ['verify', 'Verificación'],
+  ['prune', 'Prune'],
+  ['sync', 'Sincronización'],
+  ['gc', 'Garbage Collection'],
+];
+
+function TaskGroupsCard() {
+  const tr = useT();
+  const [jobs, setJobs] = useState(null);   // { backup:[], verify:[], ... }
+  const [groups, setGroups] = useState([]);
+  const [editing, setEditing] = useState(null); // null | {} nuevo | group editar
+  const [msg, setMsg] = useState(null);
+  const [err, setErr] = useState(null);
+
+  const load = () => {
+    api.notifyGroupsGet().then(setGroups).catch(() => setGroups([]));
+    api.notifyEnabledJobs().then(setJobs).catch(() => setJobs({ backup: [], verify: [], prune: [], sync: [], gc: [] }));
+  };
+  useEffect(() => { load(); }, []);
+
+  async function remove(g) {
+    if (!(await confirmDialog({ message: `${tr('¿Eliminar el grupo')} "${g.name}"?`, danger: true, confirmLabel: tr('Eliminar') }))) return;
+    try { await api.notifyGroupDelete(g.id); load(); } catch (e) { setErr(e.message); }
+  }
+
+  const kindLabel = (k) => tr(GROUP_KINDS.find(([kk]) => kk === k)?.[1] || k);
+
+  return (
+    <div className="card card-pad">
+      <h3 style={{ marginTop: 0 }}>{tr('Resumen agrupado por grupos de tareas')}</h3>
+      <p className="muted" style={{ fontSize: 12.5, marginTop: -4 }}>
+        {tr('Agrupa jobs concretos; cuando TODOS los del grupo terminan (cada uno con éxito o fallo), PBI envía un ')}<b>{tr('único correo de resumen')}</b>{tr(' en vez de uno por tarea. Los jobs metidos en un grupo dejan de avisar individualmente.')}
+      </p>
+
+      {err && <div className="error-box" style={{ marginBottom: 10 }}>✕ {err}</div>}
+      {msg && <div className="banner" style={{ marginBottom: 10 }}>{msg}</div>}
+
+      {groups.length > 0 && (
+        <div style={{ marginBottom: 12 }}>
+          {groups.map((g) => (
+            <div key={g.id} className="flex-between" style={{ padding: '9px 0', borderTop: '1px solid var(--border)', gap: 10, flexWrap: 'wrap' }}>
+              <div>
+                <b>{g.name}</b> <span className="badge muted plain">{g.members.length} {tr('miembros')}</span>
+                {!g.notifyOk && <span className="badge warn" style={{ marginLeft: 6 }}>{tr('solo si falla')}</span>}
+                <div className="muted" style={{ fontSize: 11.5, marginTop: 2 }}>
+                  {g.members.map((m) => `${kindLabel(m.kind)}: ${m.label}`).join(' · ')}
+                </div>
+                <div className="muted" style={{ fontSize: 11 }}>{tr('Espera máx.')}: {g.maxWaitHours} h</div>
+              </div>
+              <div className="btn-row" style={{ flexWrap: 'nowrap' }}>
+                <button className="btn sm ghost" onClick={() => setEditing(g)}>{tr('Editar')}</button>
+                <button className="btn sm ghost danger" onClick={() => remove(g)}>{tr('Eliminar')}</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <button className="btn primary sm" onClick={() => setEditing({})}><Icon.bolt width={14} height={14} /> {tr('Nuevo grupo')}</button>
+
+      {editing && (
+        <GroupEditor
+          jobs={jobs} group={editing}
+          onClose={() => setEditing(null)}
+          onSaved={() => { setEditing(null); setMsg(tr('Grupo guardado.')); load(); }}
+        />
+      )}
+    </div>
+  );
+}
+
+function GroupEditor({ jobs, group, onClose, onSaved }) {
+  const tr = useT();
+  const isNew = !group.id;
+  const [name, setName] = useState(group.name || '');
+  const [notifyOk, setNotifyOk] = useState(group.notifyOk !== false);
+  const [maxWaitHours, setMaxWaitHours] = useState(group.maxWaitHours || 24);
+  const [sel, setSel] = useState(() => new Set((group.members || []).map((m) => `${m.kind}:${m.scope}:${m.ref}`)));
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const j = jobs || { backup: [], verify: [], prune: [], sync: [], gc: [] };
+  const keyOf = (kind, job) => `${kind}:${job.scope}:${job.ref}`;
+  const toggle = (k) => setSel((s) => { const n = new Set(s); n.has(k) ? n.delete(k) : n.add(k); return n; });
+
+  // Índice de todos los jobs disponibles para reconstruir los miembros seleccionados.
+  const allJobs = GROUP_KINDS.flatMap(([kind]) => (j[kind] || []).map((job) => ({ kind, job, key: keyOf(kind, job) })));
+
+  async function save() {
+    setErr(null);
+    const members = allJobs.filter((x) => sel.has(x.key)).map((x) => ({
+      kind: x.kind, scope: x.job.scope, ref: x.job.ref,
+      label: `${x.job.label}${x.job.scopeName ? ` (${x.job.scopeName})` : ''}`,
+    }));
+    if (!name.trim()) { setErr(tr('Ponle un nombre al grupo.')); return; }
+    if (!members.length) { setErr(tr('Selecciona al menos un job.')); return; }
+    setBusy(true);
+    try {
+      const body = { name: name.trim(), notifyOk, maxWaitHours: Number(maxWaitHours) || 24, members };
+      if (isNew) await api.notifyGroupCreate(body); else await api.notifyGroupUpdate(group.id, body);
+      onSaved();
+    } catch (e) { setErr(e.message); setBusy(false); }
+  }
+
+  const totalJobs = allJobs.length;
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 620 }} onClick={(e) => e.stopPropagation()}>
+        <h3>{isNew ? tr('Nuevo grupo de tareas') : tr('Editar grupo')}</h3>
+
+        <div className="field"><label>{tr('Nombre del grupo')}</label>
+          <input className="input" value={name} placeholder={tr('p. ej. Nocturno')} onChange={(e) => setName(e.target.value)} autoFocus />
+        </div>
+
+        <label style={{ fontSize: 12.5, color: 'var(--text-2)', fontWeight: 500 }}>{tr('Jobs del grupo')}</label>
+        {jobs == null ? <Loading /> : totalJobs === 0 ? (
+          <p className="muted" style={{ fontSize: 12.5 }}>{tr('No se han detectado jobs habilitados. Programa copias en PVE o jobs verify/prune/sync/GC en PBS y vuelve aquí.')}</p>
+        ) : (
+          <div style={{ maxHeight: 260, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', margin: '6px 0 12px' }}>
+            {GROUP_KINDS.map(([kind, label]) => (j[kind] || []).length > 0 && (
+              <div key={kind} style={{ marginBottom: 8 }}>
+                <div className="muted" style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '.4px', margin: '4px 0' }}>{tr(label)}</div>
+                {j[kind].map((job) => {
+                  const k = keyOf(kind, job);
+                  return (
+                    <label key={k} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '3px 0', fontSize: 13 }}>
+                      <input type="checkbox" checked={sel.has(k)} onChange={() => toggle(k)} />
+                      <span><b>{job.label}</b>{job.scopeName ? <span className="muted"> · {job.scopeName}</span> : ''}{job.schedule ? <span className="muted mono" style={{ fontSize: 11 }}> · {job.schedule}</span> : ''}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="row">
+          <label style={{ display: 'flex', gap: 8, alignItems: 'center', flex: 1 }}>
+            <input type="checkbox" checked={notifyOk} onChange={(e) => setNotifyOk(e.target.checked)} />
+            <span className="muted">{tr('Avisar siempre (desmarcado = solo si algo falla)')}</span>
+          </label>
+          <div className="field" style={{ maxWidth: 200 }}>
+            <label>{tr('Espera máxima (horas)')}</label>
+            <input className="input" type="number" min="1" max="168" value={maxWaitHours} onChange={(e) => setMaxWaitHours(e.target.value)} />
+          </div>
+        </div>
+        <p className="muted" style={{ fontSize: 11.5, marginTop: -4 }}>{tr('Si al cabo de ese tiempo algún job no se ha ejecutado, se envía un resumen parcial indicando lo pendiente.')}</p>
+
+        {err && <div className="error-box" style={{ marginTop: 4 }}>✕ {err}</div>}
+
+        <div className="btn-row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
+          <button className="btn" onClick={onClose} disabled={busy}>{tr('Cancelar')}</button>
+          <button className="btn primary" onClick={save} disabled={busy}>{busy ? tr('Guardando…') : tr('Guardar grupo')}</button>
+        </div>
+      </div>
     </div>
   );
 }

@@ -302,6 +302,61 @@ export function buildDigestEmail({ sections = [], unprotected = [], names = {} }
   return { subject, html, text };
 }
 
+/**
+ * Resumen agrupado de un grupo de tareas: un único email cuando todos los
+ * miembros del grupo han terminado (o al vencer la espera). `summary` es el
+ * objeto que produce taskGroups.collectDue(): { groupName, complete, members:[
+ * { kind, label, ok:[unidades], fail:[{id,status}], pending:[...], done } ],
+ * totOk, totFail }. `names` mapea VMID → nombre de máquina.
+ */
+export function buildGroupSummaryEmail(summary, { sede, names = {} } = {}) {
+  const site = sede || 'PBI';
+  const nm = (v) => (names[v] ? ` (${escapeHtml(names[v])})` : '');
+  const anyFail = summary.totFail > 0;
+  const anyPending = summary.members.some((m) => m.pending.length);
+  const emoji = anyFail ? '⚠️' : anyPending ? '⏳' : '✅';
+  const headerColor = anyFail ? '#b62a25' : anyPending ? '#a06806' : '#157a42';
+  const headerBg = anyFail ? '#fdeceb' : anyPending ? '#fbf2dd' : '#e6f4ec';
+  const subject = `[${site}] ${emoji} Resumen «${summary.groupName}»`
+    + ` — ${summary.totOk} OK${summary.totFail ? `, ${summary.totFail} con fallo` : ''}${!summary.complete ? ' (parcial)' : ''}`;
+
+  const memHtml = summary.members.map((m) => {
+    const head = `<div style="font-size:13px;font-weight:600;color:#1b2430;margin-bottom:3px">${taskLabel(m.kind)} · ${escapeHtml(m.label)}
+      <span style="font-weight:400;color:${m.done ? '#157a42' : '#a06806'}">— ${m.done ? 'terminado' : 'pendiente'}</span></div>`;
+    const okLine = m.ok.length
+      ? `<div style="font-size:12px;color:#157a42;padding:1px 0">✓ ${m.ok.length} correcta(s): ${m.ok.map((v) => `${escapeHtml(String(v))}${nm(v)}`).join(', ')}</div>` : '';
+    const failLine = m.fail.length
+      ? m.fail.map((f) => `<div style="font-size:12px;color:#b62a25;padding:1px 0">✕ ${escapeHtml(String(f.id))}${nm(f.id)} — <span style="font-family:Consolas,monospace">${escapeHtml(String(f.status || '').slice(0, 60))}</span></div>`).join('') : '';
+    const pendLine = m.pending.length
+      ? `<div style="font-size:12px;color:#a06806;padding:1px 0">⏳ ${m.pending.length} sin ejecutar: ${m.pending.map((v) => `${escapeHtml(String(v))}${nm(v)}`).join(', ')}</div>` : '';
+    return `<div style="border:1px solid #eef1f5;border-radius:8px;padding:10px 14px;margin-bottom:10px">${head}${okLine}${failLine}${pendLine}</div>`;
+  }).join('');
+
+  const intro = summary.complete
+    ? `<p style="font-size:13px;color:${headerColor};font-weight:600;margin:2px 0 12px">${anyFail ? '⚠ El grupo ha terminado con fallos.' : '✓ El grupo ha terminado correctamente.'}</p>`
+    : `<p style="font-size:13px;color:#a06806;font-weight:600;margin:2px 0 12px">⏳ Resumen parcial: se agotó el tiempo de espera y algunos miembros no llegaron a ejecutarse.</p>`;
+
+  const html = shell({
+    site, header: `📦 Resumen de grupo · ${escapeHtml(summary.groupName)}`,
+    headerColor, headerBg, bodyHtml: `${intro}${memHtml}`,
+  });
+
+  const text = [
+    `${site} — Resumen del grupo "${summary.groupName}" ${summary.complete ? '' : '(parcial)'}`,
+    `${summary.totOk} correcta(s), ${summary.totFail} con fallo`,
+    '',
+    ...summary.members.map((m) => {
+      const parts = [`${taskLabel(m.kind)} · ${m.label}: ${m.done ? 'terminado' : 'pendiente'}`];
+      if (m.ok.length) parts.push(`  OK: ${m.ok.join(', ')}`);
+      if (m.fail.length) parts.push(`  Fallo: ${m.fail.map((f) => `${f.id} (${f.status})`).join(', ')}`);
+      if (m.pending.length) parts.push(`  Sin ejecutar: ${m.pending.join(', ')}`);
+      return parts.join('\n');
+    }),
+  ].join('\n');
+
+  return { subject, html, text };
+}
+
 /** Email de prueba. */
 export function buildTestEmail({ hostName, sede } = {}) {
   const site = sede || 'PBI';

@@ -101,6 +101,14 @@ El email incluye:
 - **Tipo de copia**: categoría PBS (VM / CT / Host) y modo Full/Incremental si se puede determinar del log de la tarea.
 - **Estado de cifrado**: fila «Cifrado: Sí 🔒 / No» cuando el log indica que el backup se cifró.
 
+**Resumen agrupado por grupos de tareas**: en vez de un correo por tarea, defines
+**grupos** con jobs concretos (copias de PVE y verify/prune/sync/GC de PBS); cuando
+**todos** los miembros del grupo terminan —cada uno con éxito o fallo— PBI envía un
+**único email de resumen** del grupo, con el detalle de lo que salió bien y lo que falló.
+Un job de copia cuenta como terminado cuando todas sus VMs tienen desenlace. Si algún
+job no llega a ejecutarse dentro de una **espera máxima** configurable, se envía un
+resumen parcial. Los jobs incluidos en un grupo dejan de avisar individualmente.
+
 **Vigilancia proactiva** (avisos de lo que NO pasa):
 - **RPO**: aviso si una máquina lleva más de N horas sin copia completada.
 - **Ocupación**: aviso si un datastore supera el % configurado.

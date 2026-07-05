@@ -5,10 +5,11 @@ import * as store from '../notifyStore.js';
 import { getDefaultHost, listHostsRaw } from '../hostStore.js';
 import { listPveRaw, getDefaultPve } from '../pveStore.js';
 import { authForHost } from '../authResolver.js';
-import { pveSilenceBackupJobs, pveListNotificationMatchers, pveSetNotificationMatcherDisabled } from '../pveService.js';
-import { setNotificationMatcherDisabled, listNotificationMatchers } from '../pbsService.js';
+import { pveSilenceBackupJobs, pveListNotificationMatchers, pveSetNotificationMatcherDisabled, pveBackupJobs } from '../pveService.js';
+import { setNotificationMatcherDisabled, listNotificationMatchers, listJobs, listDatastores, getDatastoreConfig } from '../pbsService.js';
 import { sendMail, buildTestEmail } from '../mailer.js';
 import { getRaw as getReportCfg } from '../reportStore.js';
+import * as groups from '../taskGroupStore.js';
 import { audit } from '../auditLog.js';
 
 export const notifyRouter = Router();
@@ -128,4 +129,82 @@ notifyRouter.post('/test', wrap(async (req, res) => {
   } catch (err) {
     res.json({ ok: false, error: err.message });
   }
+}));
+
+// --- Grupos de tareas para el resumen agrupado ------------------------------
+
+// Jobs habilitados detectados (para construir los grupos desde la GUI):
+// copias PVE + verify/prune/sync/GC de cada host PBS. Un host/PVE que falle no
+// rompe el resto (se omite).
+notifyRouter.get('/enabled-jobs', wrap(async (req, res) => {
+  const out = { backup: [], verify: [], prune: [], sync: [], gc: [] };
+
+  // Copias de seguridad (PVE), de todas las conexiones configuradas.
+  for (const pve of listPveRaw()) {
+    try {
+      const jobs = (await pveBackupJobs(pve)) || [];
+      for (const j of jobs) {
+        if (j.enabled === 0 || j.enabled === '0') continue;
+        out.backup.push({
+          scope: pve.id, scopeName: pve.name || pve.host, ref: String(j.id),
+          label: j.comment || String(j.id), schedule: j.schedule || '',
+          all: j.all === 1 || j.all === '1', vmid: j.vmid || '', exclude: j.exclude || '',
+        });
+      }
+    } catch { /* PVE no disponible: omitir */ }
+  }
+
+  // verify/prune/sync + GC por host PBS.
+  for (const host of listHostsRaw()) {
+    let auth;
+    try { auth = await authForHost(host); } catch { continue; }
+    for (const kind of ['verify', 'prune', 'sync']) {
+      try {
+        const jobs = (await listJobs(auth, kind)) || [];
+        for (const j of jobs) {
+          if (j.disable) continue;
+          out[kind].push({
+            scope: host.id, scopeName: host.name || host.host, ref: String(j.id),
+            label: `${j.id}${j.store ? ` · ${j.store}` : ''}`, store: j.store || '', schedule: j.schedule || '',
+          });
+        }
+      } catch { /* tipo/host no disponible: omitir */ }
+    }
+    try {
+      const dss = (await listDatastores(auth)) || [];
+      for (const ds of dss) {
+        try {
+          const cfg = await getDatastoreConfig(auth, ds.store);
+          if (cfg?.['gc-schedule']) {
+            out.gc.push({
+              scope: host.id, scopeName: host.name || host.host, ref: ds.store,
+              label: ds.store, store: ds.store, schedule: cfg['gc-schedule'],
+            });
+          }
+        } catch { /* sin config/permite: omitir */ }
+      }
+    } catch { /* sin datastores: omitir */ }
+  }
+
+  res.json(out);
+}));
+
+notifyRouter.get('/groups', (req, res) => res.json(groups.listGroups()));
+
+notifyRouter.post('/groups', wrap(async (req, res) => {
+  const g = groups.createGroup(req.body || {});
+  audit(req, 'notify.group_create', g.name, 'ok', `${g.members.length} miembro(s)`);
+  res.json(g);
+}));
+
+notifyRouter.put('/groups/:id', wrap(async (req, res) => {
+  const g = groups.updateGroup(req.params.id, req.body || {});
+  audit(req, 'notify.group_update', g.name, 'ok');
+  res.json(g);
+}));
+
+notifyRouter.delete('/groups/:id', wrap(async (req, res) => {
+  groups.deleteGroup(req.params.id);
+  audit(req, 'notify.group_delete', req.params.id, 'ok');
+  res.json({ ok: true });
 }));
