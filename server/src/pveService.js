@@ -185,10 +185,16 @@ export function pveStopTask(pve, upid) {
   return pveCall(pve, { method: 'DELETE', path: `/nodes/${encodeURIComponent(node)}/tasks/${encodeURIComponent(upid)}` });
 }
 
-/** Lista ficheros del interior de un backup (file-restore de PVE). */
+/**
+ * Lista ficheros del interior de un backup (file-restore de PVE). El PRIMER acceso
+ * a un backup es lento: PVE arranca una VM auxiliar para montar el disco y, con
+ * carpetas de muchos ficheros, los 30 s por defecto se quedan cortos (de ahí el
+ * "a la 2ª o 3ª carga"). Se da un timeout más amplio para esta operación.
+ */
 export function pveFileList(pve, { node, storage, volume, filepath }) {
   return pveCall(pve, {
     path: `/nodes/${encodeURIComponent(node)}/storage/${encodeURIComponent(storage)}/file-restore/list`,
     query: { volume, filepath: filepath || '/' },
+    timeoutMs: 120000,
   });
 }

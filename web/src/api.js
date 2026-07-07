@@ -147,6 +147,7 @@ export const api = {
   // Auto-actualización
   updateCapability: () => req('GET', '/update/capability'),
   updateApply: (body) => req('POST', '/update/apply', body),
+  updateStatus: () => req('GET', '/update/status'),
 
   // Restauraciones programadas
   restoreJobs: () => req('GET', '/restore-jobs'),

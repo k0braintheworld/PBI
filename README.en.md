@@ -46,7 +46,9 @@ Guided restore through Proxmox VE, without touching the console:
 - **Full VM/CT**: pick the machine → restore point → target node, disk storage and
   VMID, with **overwrite** and **start after restore** options. **Live** task log.
 - **Files (granular)**: browse inside the backup and download specific files or folders
-  (ZIP).
+  (ZIP), with a **search box** within the folder and **multi-select** to download several
+  at once. The first access to a backup (PVE boots a helper VM) has a **generous timeout**
+  and a **retry** button for folders with many files.
 
 ### Scheduled tasks
 - **Backups (Proxmox VE)**: create/edit/delete *vzdump* jobs with templates (daily, GFS,
@@ -132,7 +134,9 @@ When an update is found:
 - **One-click install**: asks for your PBI password (never the root password), downloads
   the `.deb`, verifies its **SHA-256** and triggers installation through a dedicated
   system service with the minimum required privileges — the web process **never
-  escalates privileges**.
+  escalates privileges**. It shows a **progress bar** (download + install phases) and, if
+  the package manager is busy (apt-daily / unattended-upgrades), it **waits and retries**
+  instead of failing silently; if something fails, it reports why so you can retry.
 - **Manual SSH guide**: if you prefer to update by hand, the panel shows the ready-to-copy
   `wget` / `sha256sum` / `dpkg -i` commands.
 

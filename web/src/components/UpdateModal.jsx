@@ -19,6 +19,33 @@ function cmpVer(a, b) {
   return 0;
 }
 
+const fmtMB = (n) => `${(Number(n || 0) / 1048576).toFixed(1)} MB`;
+
+/** Barra de progreso de la auto-instalación: descarga real (%) + fases de instalación. */
+function InstallProgress({ install, debSize, t }) {
+  const phase = install.phase || 'download';
+  const dlPct = debSize ? Math.min(90, Math.round((install.bytes / debSize) * 90)) : 45;
+  const pct = phase === 'download' ? dlPct : phase === 'verify' ? 92 : phase === 'wait' ? 94 : phase === 'install' ? 97 : 20;
+  const label = phase === 'download'
+    ? `${t('Descargando el paquete…')} ${fmtMB(install.bytes)}${debSize ? ` / ${fmtMB(debSize)}` : ''}`
+    : phase === 'verify' ? t('Verificando integridad (SHA-256)…')
+      : phase === 'wait' ? t('Esperando al gestor de paquetes (ocupado)…')
+        : phase === 'install' ? t('Instalando el paquete…')
+          : t('Preparando…');
+  return (
+    <div>
+      <div className="flex-between" style={{ fontSize: 12.5, color: 'var(--text-2)', marginBottom: 5 }}>
+        <span>{label}</span>
+        {phase === 'download' && <span className="mono" style={{ fontWeight: 600 }}>{dlPct}%</span>}
+      </div>
+      <div className="bar" style={{ height: 9 }}><span style={{ width: `${pct}%`, background: 'var(--info)', transition: 'width .4s ease' }} /></div>
+      <span className="muted" style={{ fontSize: 11.5, marginTop: 8, display: 'inline-block' }}>
+        {t('No cierres esta ventana. Al terminar la instalación el servicio se reiniciará y la página se recargará.')}
+      </span>
+    </div>
+  );
+}
+
 function CopyBox({ value, multiline, t }) {
   const [copied, setCopied] = useState(false);
   const copy = () => { try { navigator.clipboard.writeText(value); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
@@ -54,7 +81,7 @@ export default function UpdateModal({ onClose }) {
         setState({
           loading: false, latest: (rel.tag_name || '').replace(/^v/i, ''),
           notes: rel.body || '', url: rel.html_url,
-          debUrl: deb?.browser_download_url, debName: deb?.name, sha256: sha,
+          debUrl: deb?.browser_download_url, debName: deb?.name, sha256: sha, debSize: deb?.size || 0,
         });
       })
       .catch((e) => { if (!cancelled) setState({ loading: false, error: e.message }); });
@@ -73,15 +100,40 @@ export default function UpdateModal({ onClose }) {
   ].filter(Boolean).join('\n');
 
   async function doInstall() {
-    setInstall({ busy: true });
+    setInstall({ busy: true, phase: 'apply' });
     try {
-      const r = await api.updateApply({ password: pw, url: state.debUrl, sha256: state.sha256 });
-      setInstall({ ok: true, msg: r.message });
+      await api.updateApply({ password: pw, url: state.debUrl, sha256: state.sha256 });
       setPw('');
-      setTimeout(() => { try { window.location.reload(); } catch { /* ignore */ } }, 25000);
+      pollStatus(); // seguimiento real del instalador (en vez de recargar a ciegas)
     } catch (e) {
       setInstall({ error: e.message });
     }
+  }
+
+  // Sondea /update/status hasta ver un resultado. En éxito el servicio se reinicia
+  // (las peticiones empiezan a fallar) → recargamos. Si el instalador reporta error
+  // (p. ej. gestor de paquetes ocupado), lo mostramos para que el usuario reintente.
+  function pollStatus() {
+    const started = Date.now();
+    let netFails = 0;
+    const reload = () => setTimeout(() => { try { window.location.reload(); } catch { /* ignore */ } }, 4000);
+    const tick = async () => {
+      if (Date.now() - started > 7 * 60 * 1000) { setInstall({ timeout: true }); return; }
+      try {
+        const s = await api.updateStatus();
+        netFails = 0;
+        if (s.state === 'ok') { setInstall({ ok: true }); reload(); return; }
+        if (s.state === 'error') { setInstall({ error: s.phase || t('La instalación falló.') }); return; }
+        setInstall({ busy: true, phase: s.phase || 'download', bytes: s.bytes || 0 });
+        setTimeout(tick, s.phase === 'download' ? 1000 : 3000);
+      } catch {
+        // Sin respuesta: lo normal es que el servicio se esté reiniciando (éxito).
+        netFails += 1;
+        if (netFails >= 4) { setInstall({ ok: true }); reload(); return; }
+        setTimeout(tick, 4000);
+      }
+    };
+    setTimeout(tick, 3000);
   }
 
   return (
@@ -108,7 +160,11 @@ export default function UpdateModal({ onClose }) {
             )}
 
             {install?.ok ? (
-              <div className="banner">✓ {install.msg} {t('La página se recargará automáticamente.')}</div>
+              <div className="banner">✓ {t('Actualización instalada. La página se recargará automáticamente.')}</div>
+            ) : install?.timeout ? (
+              <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '9px 12px', borderRadius: 8, fontSize: 12.5 }}>
+                {t('Está tardando más de lo normal (el gestor de paquetes puede estar ocupado). Comprueba la versión en unos minutos; si no cambió, vuelve a intentarlo.')}
+              </div>
             ) : (
               <>
                 <div className="btn-row" style={{ marginBottom: 10 }}>
@@ -119,15 +175,20 @@ export default function UpdateModal({ onClose }) {
 
                 {pwOpen && (
                   <div className="card card-pad" style={{ margin: '4px 0 12px' }}>
-                    <label style={{ fontSize: 13 }}>{t('Confirma con tu contraseña de PBI para instalar:')}</label>
-                    <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
-                      <input className="input" type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} placeholder={t('Contraseña')}
-                        onKeyDown={(e) => { if (e.key === 'Enter' && pw && !install?.busy) doInstall(); }} />
-                      <button className="btn primary" disabled={!pw || install?.busy} onClick={doInstall}>{install?.busy ? t('Instalando…') : t('Instalar')}</button>
-                      <button className="btn" disabled={install?.busy} onClick={() => { setPwOpen(false); setPw(''); setInstall(null); }}>{t('Cancelar')}</button>
-                    </div>
-                    {install?.error && <div className="error-box" style={{ marginTop: 8 }}>{install.error}</div>}
-                    {install?.busy && <span className="muted" style={{ fontSize: 11.5 }}>{t('Descargando, verificando e instalando… el servicio se reiniciará.')}</span>}
+                    {install?.busy ? (
+                      <InstallProgress install={install} debSize={state.debSize} t={t} />
+                    ) : (
+                      <>
+                        <label style={{ fontSize: 13 }}>{t('Confirma con tu contraseña de PBI para instalar:')}</label>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+                          <input className="input" type="password" autoFocus value={pw} onChange={(e) => setPw(e.target.value)} placeholder={t('Contraseña')}
+                            onKeyDown={(e) => { if (e.key === 'Enter' && pw) doInstall(); }} />
+                          <button className="btn primary" disabled={!pw} onClick={doInstall}>{t('Instalar')}</button>
+                          <button className="btn" onClick={() => { setPwOpen(false); setPw(''); setInstall(null); }}>{t('Cancelar')}</button>
+                        </div>
+                        {install?.error && <div className="error-box" style={{ marginTop: 8 }}>{install.error} <span className="muted">{t('Puedes volver a intentarlo.')}</span></div>}
+                      </>
+                    )}
                   </div>
                 )}
 

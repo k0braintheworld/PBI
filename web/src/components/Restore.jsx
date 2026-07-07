@@ -412,6 +412,10 @@ function FileRestore({ pveId, node, storage, point }) {
   const [entries, setEntries] = useState(null);
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [query, setQuery] = useState('');
+  const [sel, setSel] = useState(new Set()); // filepaths seleccionados (carpeta actual)
+  const [reloadN, setReloadN] = useState(0);
+  const [dl, setDl] = useState(null); // progreso de descarga múltiple
   const cur = stack[stack.length - 1].filepath;
 
   useEffect(() => {
@@ -420,13 +424,43 @@ function FileRestore({ pveId, node, storage, point }) {
       .then((e) => setEntries(e || []))
       .catch((e) => { setErr(e.message); setEntries(null); })
       .finally(() => setLoading(false));
-  }, [pveId, node, storage, point.volid, cur]);
+  }, [pveId, node, storage, point.volid, cur, reloadN]);
+
+  // Al cambiar de carpeta se limpian búsqueda y selección.
+  useEffect(() => { setQuery(''); setSel(new Set()); }, [cur]);
 
   const enter = (e) => setStack((s) => [...s, { name: e.text, filepath: e.filepath, type: e.type }]);
   const goTo = (i) => setStack((s) => s.slice(0, i + 1));
   const iconFor = (e) => (e.type === 'v' ? Icon.hdd : e.type === 'd' ? Icon.folder : Icon.file);
   const navigable = (e) => e.leaf === 0 || e.leaf === false || e.type === 'd' || e.type === 'v';
   const downloadable = (e) => e.type === 'f' || e.type === 'd' || e.leaf === 1 || e.leaf === true;
+  const dlUrl = (e) => api.pveFileDownloadUrl(pveId, { node, storage, volume: point.volid, filepath: e.filepath });
+
+  const q = query.trim().toLowerCase();
+  const shown = (entries || []).filter((e) => !q || (e.text || '').toLowerCase().includes(q));
+  const selectable = shown.filter(downloadable);
+  const selList = (entries || []).filter((e) => sel.has(e.filepath) && downloadable(e));
+  const allSel = selectable.length > 0 && selectable.every((e) => sel.has(e.filepath));
+
+  const toggle = (fp) => setSel((s) => { const n = new Set(s); n.has(fp) ? n.delete(fp) : n.add(fp); return n; });
+  const toggleAll = () => setSel(allSel ? new Set() : new Set(selectable.map((e) => e.filepath)));
+
+  // Descarga múltiple: como PVE descarga por ruta individual, se lanzan las
+  // descargas de forma secuencial (con un pequeño intervalo para que el navegador
+  // no las agrupe/bloquee). Las carpetas se descargan como ZIP (comportamiento de PVE).
+  async function downloadSelected() {
+    if (!selList.length) return;
+    setDl({ done: 0, total: selList.length });
+    for (let i = 0; i < selList.length; i += 1) {
+      const a = document.createElement('a');
+      a.href = dlUrl(selList[i]);
+      a.rel = 'noopener';
+      document.body.appendChild(a); a.click(); a.remove();
+      setDl({ done: i + 1, total: selList.length });
+      if (i < selList.length - 1) await new Promise((r) => setTimeout(r, 900));
+    }
+    setTimeout(() => setDl(null), 1500);
+  }
 
   return (
     <div className="card">
@@ -443,18 +477,48 @@ function FileRestore({ pveId, node, storage, point }) {
         ))}
       </div>
 
+      {!loading && !err && entries && (
+        <div className="panel-body" style={{ borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+            <Icon.search width={14} height={14} style={{ position: 'absolute', left: 9, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-3)' }} />
+            <input className="input" style={{ paddingLeft: 30 }} placeholder={t('Buscar en esta carpeta…')} value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          <button className="btn sm" disabled={!selList.length || !!dl} onClick={downloadSelected}>
+            <Icon.download width={13} height={13} /> {dl ? `${dl.done}/${dl.total}` : `${t('Descargar seleccionados')}${selList.length ? ` (${selList.length})` : ''}`}
+          </button>
+        </div>
+      )}
+
       {loading ? <Loading label={t('Montando el backup en PVE…')} /> : err ? (
         <div className="card-pad">
           <ErrorBox error={err} />
+          <div className="btn-row" style={{ margin: '10px 0' }}>
+            <button className="btn sm primary" onClick={() => setReloadN((n) => n + 1)}><Icon.refresh width={13} height={13} /> {t('Reintentar')}</button>
+          </div>
           <p className="muted" style={{ fontSize: 12.5, marginBottom: 0 }}>
-            {t('La exploración de ficheros monta el disco en una ')}<b>{t('VM auxiliar de file-restore con memoria propia y limitada')}</b>{t(' (independiente de la RAM libre de ')}<b>{node}</b>{t('). El error ')}<b>{t('«No space left on device»')}</b>{t(' lo genera esa VM auxiliar al indexar sistemas de ficheros grandes —típico en discos ')}<b>Windows/NTFS</b>{t(': su índice en RAM se llena. Funciona bien con discos Linux pequeños. Para VMs Windows grandes usa')}<b>{t(' «VM completa»')}</b>{t(' (no usa esta VM auxiliar). Es una limitación de Proxmox VE, no del gestor.')}
+            {t('El primer acceso a un backup es lento: PVE arranca una VM auxiliar para montarlo; si tarda demasiado, reintenta (suele cargar a la segunda). ')}
+            {t('Esa VM auxiliar tiene ')}<b>{t('memoria propia y limitada')}</b>{t('; el error ')}<b>{t('«No space left on device»')}</b>{t(' aparece al indexar sistemas de ficheros grandes —típico en discos ')}<b>Windows/NTFS</b>{t('. Para VMs Windows grandes usa')}<b>{t(' «VM completa»')}</b>{t('. Es una limitación de Proxmox VE, no del gestor.')}
           </p>
         </div>
       ) : (
         <table>
+          {selectable.length > 0 && (
+            <thead>
+              <tr>
+                <th style={{ width: 1 }}><input type="checkbox" checked={allSel} onChange={toggleAll} title={t('Seleccionar todo')} /></th>
+                <th colSpan={2} className="muted" style={{ fontWeight: 400, fontSize: 12 }}>
+                  {q ? `${shown.length} ${t('de')} ${entries.length}` : `${entries.length} ${t('elementos')}`}
+                </th>
+                <th className="num muted" style={{ fontWeight: 400, fontSize: 12 }}>{sel.size ? `${sel.size} ${t('sel.')}` : ''}</th>
+              </tr>
+            </thead>
+          )}
           <tbody>
-            {(entries || []).map((e, i) => (
-              <tr key={i}>
+            {shown.map((e, i) => (
+              <tr key={i} style={{ background: sel.has(e.filepath) ? 'var(--surface-2)' : '' }}>
+                <td style={{ width: 1 }}>
+                  {downloadable(e) && <input type="checkbox" checked={sel.has(e.filepath)} onChange={() => toggle(e.filepath)} />}
+                </td>
                 <td style={{ width: 20, color: navigable(e) ? 'var(--brand)' : 'var(--text-3)' }}>
                   {(() => { const I = iconFor(e); return <I width={16} height={16} />; })()}
                 </td>
@@ -466,7 +530,7 @@ function FileRestore({ pveId, node, storage, point }) {
                 <td className="num">{e.size != null ? fmtBytes(e.size) : ''}</td>
                 <td style={{ width: 1 }}>
                   {downloadable(e) && (
-                    <a className="btn sm" href={api.pveFileDownloadUrl(pveId, { node, storage, volume: point.volid, filepath: e.filepath })}>
+                    <a className="btn sm" href={dlUrl(e)}>
                       <Icon.download width={13} height={13} /> {e.type === 'd' ? 'ZIP' : t('Descargar')}
                     </a>
                   )}
@@ -475,15 +539,18 @@ function FileRestore({ pveId, node, storage, point }) {
             ))}
             {entries && !entries.length && (
               stack[stack.length - 1].type === 'v' ? (
-                <tr><td colSpan={4} style={{ padding: 18 }}>
+                <tr><td colSpan={5} style={{ padding: 18 }}>
                   <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '10px 14px', borderRadius: 8, fontSize: 12.5 }}>
                     <b>{t('PVE no ha podido leer el contenido de este disco.')}</b>{' '}
                     {t('El backup está bien, pero el explorador de ficheros de Proxmox no reconoce su sistema de ficheros. Causas habituales: NTFS «sucia» por el arranque rápido de Windows (desactívalo con «powercfg /h off» y apaga por completo antes de la siguiente copia), disco cifrado (BitLocker/LUKS) o discos dinámicos/LVM. Para recuperar datos de esta copia usa «VM completa».')}
                   </div>
                 </td></tr>
               ) : (
-                <tr><td colSpan={4} className="muted" style={{ textAlign: 'center', padding: 22 }}>{t('Carpeta vacía')}</td></tr>
+                <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 22 }}>{t('Carpeta vacía')}</td></tr>
               )
+            )}
+            {entries && entries.length > 0 && !shown.length && (
+              <tr><td colSpan={5} className="muted" style={{ textAlign: 'center', padding: 22 }}>{t('Sin coincidencias para')} «{query}»</td></tr>
             )}
           </tbody>
         </table>

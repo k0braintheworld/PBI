@@ -48,7 +48,9 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
   discos y VMID destino, con opciones de **sobrescribir** y **arrancar tras restaurar**.
   Seguimiento del log **en vivo**.
 - **Ficheros (granular)**: navegas por el interior del backup y descargas archivos o
-  carpetas concretas (ZIP).
+  carpetas concretas (ZIP), con **buscador** dentro de la carpeta y **selección múltiple**
+  para descargar varios a la vez. El primer acceso a un backup (PVE monta una VM auxiliar)
+  tiene un **timeout amplio** y botón de **reintentar** para carpetas con muchos ficheros.
 
 ### Tareas programadas
 - **Copias de seguridad (Proxmox VE)**: crea/edita/elimina trabajos *vzdump* con
@@ -137,6 +139,9 @@ Si hay actualización disponible:
 - **Instalación con un clic**: pide tu contraseña de PBI (nunca la contraseña de root),
   descarga el `.deb`, verifica el **SHA-256** y lanza la instalación mediante un servicio
   de sistema con los privilegios justos — el proceso web **nunca escala privilegios**.
+  Muestra una **barra de progreso** (descarga + fases de instalación) y, si el gestor de
+  paquetes está ocupado (apt-daily / unattended-upgrades), **espera y reintenta** en vez
+  de fallar en silencio; si algo falla, indica el motivo para reintentar.
 - **Guía de actualización manual (SSH)**: si prefieres hacerlo a mano, el propio panel
   muestra los comandos `wget` / `sha256sum` / `dpkg -i` listos para copiar.
 

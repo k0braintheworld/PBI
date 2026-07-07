@@ -35,7 +35,7 @@ function authHeader(pve) {
   return `PVEAPIToken=${pve.tokenId}=${pve.secret}`;
 }
 
-function buildOptions(pve, { method, path, query, payload }) {
+function buildOptions(pve, { method, path, query, payload, timeoutMs }) {
   const url = new URL(`${pve.host}/api2/json${path}`);
   if (query) {
     for (const [k, v] of Object.entries(query)) {
@@ -54,7 +54,7 @@ function buildOptions(pve, { method, path, query, payload }) {
     path: url.pathname + url.search,
     headers,
     agent: agent(pve.verifyTls),
-    timeout: TIMEOUT_MS,
+    timeout: timeoutMs || TIMEOUT_MS,
     _url: url,
   };
 }
@@ -69,9 +69,9 @@ function encodeBody(body) {
 }
 
 /** Llamada JSON. Devuelve data.data (PVE envuelve en { data: ... }). */
-export function pveCall(pve, { method = 'GET', path, query, body } = {}) {
+export function pveCall(pve, { method = 'GET', path, query, body, timeoutMs } = {}) {
   const payload = (method === 'POST' || method === 'PUT') ? encodeBody(body) : undefined;
-  const options = buildOptions(pve, { method, path, query, payload });
+  const options = buildOptions(pve, { method, path, query, payload, timeoutMs });
 
   return new Promise((resolve, reject) => {
     const req = https.request(options, (res) => {

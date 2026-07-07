@@ -18,6 +18,7 @@ export const updateRouter = Router();
 
 const UPDATER = '/opt/pbi/pbi-update';
 const REQ_FILE = path.join(config.dataDir, '.update-request');
+const STATUS_FILE = path.join(config.dataDir, '.update-status');
 const RELEASE_RE = /^https:\/\/github\.com\/k0braintheworld\/PBI\/releases\/download\/[^/]+\/[\w.+-]+\.deb$/;
 
 const hasUpdater = () => { try { return fs.statSync(UPDATER).isFile(); } catch { return false; } };
@@ -28,6 +29,24 @@ updateRouter.get('/capability', (req, res) => {
   const updater = hasUpdater();
   const downloader = hasDownloader();
   res.json({ selfUpdate: updater && downloader, updater, downloader });
+});
+
+// Resultado del último intento de auto-instalación (lo escribe el updater root en
+// .update-status con el formato "estado|detalle|fecha"). Permite al panel mostrar
+// si la actualización se instaló, está en curso o falló (p. ej. dpkg ocupado).
+updateRouter.get('/status', (req, res) => {
+  try {
+    const [state, phase, extra, at] = fs.readFileSync(STATUS_FILE, 'utf8').trim().split('|');
+    res.json({
+      state: state || null,
+      phase: phase || '',           // download | verify | wait | install | done (o mensaje si error)
+      bytes: Number(extra) || 0,    // bytes descargados (fase download)
+      at: at || null,
+      pending: fs.existsSync(REQ_FILE),
+    });
+  } catch {
+    res.json({ state: null, phase: '', bytes: 0, at: null, pending: fs.existsSync(REQ_FILE) });
+  }
 });
 
 updateRouter.post('/apply', (req, res) => {

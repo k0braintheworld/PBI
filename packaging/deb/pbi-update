@@ -4,10 +4,17 @@
 #   linea 1 = URL del .deb (release oficial)   linea 2 = SHA-256 esperado
 # Descarga, verifica el checksum e instala. El servicio web NUNCA escala
 # privilegios: solo escribe la solicitud.
-set -eu
+#
+# Robustez: el gestor de paquetes (dpkg/apt) suele estar ocupado por los timers
+# apt-daily / unattended-upgrades. En ese caso `dpkg -i` falla al no poder tomar
+# el lock; por eso se ESPERA a que se libere y se REINTENTA, en vez de abortar en
+# silencio (que era la causa de "reinicia pero sigue en la version anterior").
+# El resultado se escribe en .update-status para que el panel pueda mostrarlo.
+set -u
 
 REQ=/var/lib/pbi/.update-request
 LOG=/var/lib/pbi/.update.log
+STATUS=/var/lib/pbi/.update-status
 DEB=/var/lib/pbi/.pending-update.deb
 
 [ -f "$REQ" ] || exit 0
@@ -15,31 +22,80 @@ URL=$(sed -n '1p' "$REQ" 2>/dev/null || true)
 SHA=$(sed -n '2p' "$REQ" 2>/dev/null || true)
 rm -f "$REQ"   # consumir la solicitud (evita reprocesos)
 
+# Estado legible por el panel (usuario pbi): "estado|fase|extra|fecha-utc".
+#   estado: running | ok | error
+#   fase:   download | verify | wait | install | done  (o el mensaje si estado=error)
+#   extra:  en download, bytes descargados hasta ahora (para la barra de progreso)
+set_status() {
+  printf '%s|%s|%s|%s\n' "$1" "$2" "${3:-}" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$STATUS" 2>/dev/null || true
+  chown pbi:pbi "$STATUS" 2>/dev/null || true
+  chmod 640 "$STATUS" 2>/dev/null || true
+}
+fail() { echo "$2"; set_status error "$2" ""; exit "$1"; }
+
+# ¿Está ocupado el gestor de paquetes?
+dpkg_busy() {
+  fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 && return 0
+  fuser /var/lib/dpkg/lock >/dev/null 2>&1 && return 0
+  return 1
+}
+
 {
   echo "== $(date) =="
+  set_status running download 0
 
   # Solo releases oficiales de PBI. Validacion ANCLADA (misma que la del panel):
-  # exactamente un segmento de tag y un nombre de fichero .deb, sin '/' extra, para
-  # que el lado root no sea mas permisivo que la capa web.
+  # exactamente un segmento de tag y un nombre de fichero .deb, sin '/' extra.
   printf '%s' "$URL" | grep -Eq '^https://github\.com/k0braintheworld/PBI/releases/download/[^/]+/[A-Za-z0-9._+-]+\.deb$' \
-    || { echo "URL no permitida: $URL"; exit 2; }
-  printf '%s' "$SHA" | grep -Eq '^[a-fA-F0-9]{64}$' || { echo "Checksum con formato no valido"; exit 2; }
+    || fail 2 "URL no permitida"
+  printf '%s' "$SHA" | grep -Eq '^[a-fA-F0-9]{64}$' || fail 2 "checksum con formato no valido"
 
+  # Descarga EN SEGUNDO PLANO para poder ir reportando los bytes recibidos (barra
+  # de progreso en el panel). El tamaño total lo conoce el panel (asset de GitHub).
   rm -f "$DEB"
   if command -v curl >/dev/null 2>&1; then
-    curl -fsSL --max-time 300 "$URL" -o "$DEB" || { echo "Descarga fallida (curl)"; exit 3; }
+    curl -fsSL --max-time 300 "$URL" -o "$DEB" & DL=$!
   elif command -v wget >/dev/null 2>&1; then
-    wget -q -T 300 -O "$DEB" "$URL" || { echo "Descarga fallida (wget)"; exit 3; }
+    wget -q -T 300 -O "$DEB" "$URL" & DL=$!
   else
-    echo "Ni curl ni wget estan disponibles"; exit 5
+    fail 5 "ni curl ni wget disponibles"
   fi
+  while kill -0 "$DL" 2>/dev/null; do
+    set_status running download "$(stat -c %s "$DEB" 2>/dev/null || echo 0)"
+    sleep 1
+  done
+  wait "$DL" || fail 3 "descarga fallida"
+  set_status running download "$(stat -c %s "$DEB" 2>/dev/null || echo 0)"
 
+  set_status running verify
   if ! echo "${SHA}  ${DEB}" | sha256sum -c - >/dev/null 2>&1; then
-    rm -f "$DEB"; echo "El checksum NO coincide: descarga descartada"; exit 4
+    rm -f "$DEB"; fail 4 "el checksum NO coincide"
   fi
+  echo "Checksum OK."
 
-  echo "Checksum OK. Instalando..."
-  dpkg -i "$DEB"          # su postinst reiniciara pbi.service (unidad distinta a esta)
+  # Espera a que se libere el lock de dpkg/apt (apt-daily / unattended-upgrades…).
+  set_status running wait
+  w=0
+  while dpkg_busy; do
+    w=$((w + 1))
+    if [ "$w" -ge 60 ]; then fail 6 "el gestor de paquetes sigue ocupado (5 min)"; fi
+    echo "dpkg/apt ocupado; espero 5s (intento $w)..."
+    sleep 5
+  done
+
+  # Instala, reintentando si dpkg falla (p. ej. si el lock se toma justo ahora).
+  set_status running install
+  n=0
+  until dpkg -i "$DEB"; do
+    n=$((n + 1))
+    if [ "$n" -ge 12 ]; then fail 7 "dpkg fallo tras $n intentos"; fi
+    echo "dpkg fallo; reintento $n en 10s..."
+    set_status running wait
+    sleep 10
+    set_status running install
+  done
+
   rm -f "$DEB"
   echo "Instalacion completada."
+  set_status ok done
 } >>"$LOG" 2>&1

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
-export const APP_VERSION = '1.18.1';
+export const APP_VERSION = '1.18.2';
 export const APP_COPYRIGHT = '© 2026 k0bra';
 export const APP_LICENSE = 'GNU GPL v3';
 export const APP_TAGLINE = 'Backup interface for Proxmox';
