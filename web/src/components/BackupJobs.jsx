@@ -236,16 +236,26 @@ function JobModal({ pveId, job, guests, storages, fleeceStores = [], onClose, on
       if (form.fleecing) body.fleecing = `enabled=1,storage=${form.fleeceStorage}`;
       const mw = parseInt(form.maxWorkers, 10);
       if (Number.isFinite(mw) && mw > 0) body.performance = `max-workers=${mw}`;
-      const del = [];
-      if (form.selAll) { body.all = 1; del.push('vmid', 'pool'); }
-      else { body.vmid = [...form.vmids].join(','); del.push('all', 'pool'); }
-      if (!prune && !isNew) del.push('prune-backups');
-      if (!form.comment && !isNew) del.push('comment');
-      if (!isNew && !form.encrypt) del.push('encrypt');
-      if (!isNew && !(Number.isFinite(bw) && bw > 0)) del.push('bwlimit');
-      if (!isNew && !form.fleecing) del.push('fleecing');
-      if (!isNew && !(Number.isFinite(mw) && mw > 0)) del.push('performance');
-      if (!isNew && del.length) body.delete = del.filter((d) => d !== 'comment' || !form.comment).join(',');
+      // Selección de máquinas (all vs vmid): siempre se fija una.
+      if (form.selAll) body.all = 1;
+      else body.vmid = [...form.vmids].join(',');
+
+      // Campos opcionales a limpiar cuando quedan vacíos/desactivados. Solo se envían
+      // en `delete` los que REALMENTE existían en el trabajo: PVE rechaza borrar una
+      // opción que el job no tiene (p. ej. `delete: unknown option 'encrypt'`).
+      const has = (k) => job[k] !== undefined && job[k] !== null && job[k] !== '';
+      const maybeDelete = [];
+      if (form.selAll) maybeDelete.push('vmid', 'pool'); else maybeDelete.push('all', 'pool');
+      if (!prune) maybeDelete.push('prune-backups');
+      if (!form.comment) maybeDelete.push('comment');
+      if (!form.encrypt) maybeDelete.push('encrypt');
+      if (!(Number.isFinite(bw) && bw > 0)) maybeDelete.push('bwlimit');
+      if (!form.fleecing) maybeDelete.push('fleecing');
+      if (!(Number.isFinite(mw) && mw > 0)) maybeDelete.push('performance');
+      if (!isNew) {
+        const del = maybeDelete.filter(has);
+        if (del.length) body.delete = del.join(',');
+      }
 
       if (isNew) await api.pveCreateBackupJob(pveId, body);
       else await api.pveUpdateBackupJob(pveId, job.id, body);
