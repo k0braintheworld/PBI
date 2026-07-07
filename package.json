@@ -13,7 +13,8 @@
     "dev:server": "npm -w server run dev",
     "dev:web": "npm -w web run dev",
     "build": "npm -w web run build",
-    "start": "npm -w server run start"
+    "start": "npm -w server run start",
+    "test": "node --test server/test/*.test.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

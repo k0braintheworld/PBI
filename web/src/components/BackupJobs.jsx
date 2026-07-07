@@ -6,6 +6,7 @@ import { Loading, ErrorBox, confirmDialog } from './common.jsx';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
 import ScheduleField from './ScheduleField.jsx';
+import { buildBackupJobBody } from '../lib/backupJobBody.js';
 
 const KEEP_FIELDS = [
   ['last', 'Últimas'], ['daily', 'Diarias'], ['weekly', 'Semanales'],
@@ -219,44 +220,7 @@ function JobModal({ pveId, job, guests, storages, fleeceStores = [], onClose, on
     if (form.fleecing && !form.fleeceStorage) { onError(tr('Elige el almacenamiento local para el fleecing')); return; }
     setBusy(true);
     try {
-      const prune = KEEP_FIELDS.map(([k]) => (form.keep[k] ? `keep-${k}=${form.keep[k]}` : null)).filter(Boolean).join(',');
-      const body = {
-        schedule: form.schedule,
-        storage: form.storage,
-        mode: form.mode,
-        enabled: form.enabled ? 1 : 0,
-        comment: form.comment,
-        compress: 'zstd',
-      };
-      if (form.encrypt) body.encrypt = 1;
-      if (prune) body['prune-backups'] = prune;
-      // Rendimiento (opcional)
-      const bw = parseInt(form.bwlimit, 10);
-      if (Number.isFinite(bw) && bw > 0) body.bwlimit = bw;
-      if (form.fleecing) body.fleecing = `enabled=1,storage=${form.fleeceStorage}`;
-      const mw = parseInt(form.maxWorkers, 10);
-      if (Number.isFinite(mw) && mw > 0) body.performance = `max-workers=${mw}`;
-      // Selección de máquinas (all vs vmid): siempre se fija una.
-      if (form.selAll) body.all = 1;
-      else body.vmid = [...form.vmids].join(',');
-
-      // Campos opcionales a limpiar cuando quedan vacíos/desactivados. Solo se envían
-      // en `delete` los que REALMENTE existían en el trabajo: PVE rechaza borrar una
-      // opción que el job no tiene (p. ej. `delete: unknown option 'encrypt'`).
-      const has = (k) => job[k] !== undefined && job[k] !== null && job[k] !== '';
-      const maybeDelete = [];
-      if (form.selAll) maybeDelete.push('vmid', 'pool'); else maybeDelete.push('all', 'pool');
-      if (!prune) maybeDelete.push('prune-backups');
-      if (!form.comment) maybeDelete.push('comment');
-      if (!form.encrypt) maybeDelete.push('encrypt');
-      if (!(Number.isFinite(bw) && bw > 0)) maybeDelete.push('bwlimit');
-      if (!form.fleecing) maybeDelete.push('fleecing');
-      if (!(Number.isFinite(mw) && mw > 0)) maybeDelete.push('performance');
-      if (!isNew) {
-        const del = maybeDelete.filter(has);
-        if (del.length) body.delete = del.join(',');
-      }
-
+      const body = buildBackupJobBody({ form, job, isNew });
       if (isNew) await api.pveCreateBackupJob(pveId, body);
       else await api.pveUpdateBackupJob(pveId, job.id, body);
       onSaved();

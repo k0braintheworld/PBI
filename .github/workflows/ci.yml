@@ -1,0 +1,64 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Instalar dependencias
+        run: npm ci
+
+      - name: Tests
+        run: npm test
+
+      - name: Compilar frontend
+        run: npm run build
+
+      - name: Construir el .deb
+        run: |
+          export NODE_HOME="$(dirname "$(dirname "$(command -v node)")")"
+          bash packaging/build-deb.sh "0.0.0-ci.${GITHUB_RUN_NUMBER}"
+
+      - name: SHA-256 del paquete
+        run: sha256sum packaging/dist/*.deb
+
+      - name: Boot-verify del .deb (extrae y arranca el node embebido)
+        run: |
+          DEB="$(ls packaging/dist/*.deb | head -1)"
+          dpkg-deb -x "$DEB" /tmp/pbiverify
+          cd /tmp/pbiverify/opt/pbi/server
+          SESSION_SECRET="ci-boot-verify-$RANDOM" \
+          PBI_DATA_DIR=/tmp/pbidata \
+          PBI_WEB_DIR=/tmp/pbiverify/opt/pbi/web/dist \
+          PBI_VERSION=ci \
+          PORT=4123 \
+            /tmp/pbiverify/opt/pbi/runtime/bin/node src/index.js > /tmp/pbi-boot.log 2>&1 &
+          PID=$!
+          ok=0
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:4123/health >/dev/null 2>&1; then ok=1; break; fi
+            sleep 1
+          done
+          kill "$PID" 2>/dev/null || true
+          if [ "$ok" != "1" ]; then echo "FALLO: el servicio empaquetado no respondió /health"; cat /tmp/pbi-boot.log; exit 1; fi
+          echo "OK: el .deb arranca y /health responde."
+
+      - name: Subir el .deb como artefacto
+        uses: actions/upload-artifact@v4
+        with:
+          name: pbi-deb-${{ github.sha }}
+          path: packaging/dist/*.deb
+          if-no-files-found: error
