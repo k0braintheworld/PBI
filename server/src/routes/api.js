@@ -129,6 +129,13 @@ apiRouter.get('/tasks/:upid/log', wrap(async (req, res) => {
   }));
 }));
 
+// Detener una tarea en ejecución (operador+).
+apiRouter.post('/tasks/:upid/stop', requireOperator, wrap(async (req, res) => {
+  await pbs.stopTask(req.auth, req.params.upid);
+  audit(req, 'task.stop', req.params.upid, 'ok', 'Tarea detenida desde el monitor');
+  res.json({ ok: true });
+}));
+
 // Calendario de copias por día para un mes/rango (YYYY-MM-DD)
 apiRouter.get('/calendar', wrap(async (req, res) => {
   const { from, to } = req.query;

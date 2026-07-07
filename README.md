@@ -55,6 +55,10 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
   plantillas (diaria, GFS, etc.), selección de máquinas, retención, destino PBS y opción de
   **cifrado** (`encrypt`). El botón **Ayuda** integrado explica cómo configurar la clave de
   cifrado en PVE (GUI y CLI) y cómo restaurar copias cifradas en otro clúster.
+- **Ajustes de rendimiento de la copia** (opcionales, con ayuda «i» y valor recomendado
+  para VMs críticas): **límite de velocidad** (`bwlimit`), **lectores en paralelo**
+  (`max-workers`) y **backup fleecing** (PVE 8.2+) para que una copia larga no merme el
+  rendimiento de la máquina en marcha; cada ajuste tiene botón de «volver al valor por defecto».
 - **Restauraciones programadas**: **tests de restauración** recurrentes
   (restaura el último backup de una VM a una VMID de pruebas para validar que tus
   copias son recuperables) o restauraciones **puntuales** a una fecha/hora futura.
@@ -72,7 +76,8 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
 Historial con **auto-refresco** cada 5 s, filtro «solo en ejecución» y visor de **log por
 tarea** que se actualiza en vivo. Para los **backups en curso** muestra el **porcentaje** y
 el **log de vzdump (lado Proxmox VE)** —el mismo que ves en la consola de Proxmox—, no el
-del lado PBS (que no reporta progreso).
+del lado PBS (que no reporta progreso). Las tareas en ejecución se pueden **detener**
+(*stop*) desde el propio monitor; si es un backup, se aborta su tarea *vzdump* en PVE.
 
 ### Informes
 - **Resumen ejecutivo**: tasa de éxito, tareas correctas/fallidas, estado por datastore.
@@ -114,6 +119,8 @@ resumen parcial. Los jobs incluidos en un grupo dejan de avisar individualmente.
 - **Ocupación**: aviso si un datastore supera el % configurado.
 - **Resumen diario** a la hora elegida: fallos de las últimas 24 h, máquinas fuera de
   RPO, ocupación por datastore y máquinas sin proteger.
+- **Nueva versión de PBI**: cuando se publica una versión más reciente, un email (una vez
+  por versión) con el número de versión y las **novedades del release**. Configurable.
 
 Las notificaciones se **activan por defecto** al configurar el SMTP (host + destinatario).
 Opción para **silenciar todas las notificaciones nativas de Proxmox** (PVE y PBS) y que

@@ -440,6 +440,11 @@ export async function getTaskLog(auth, upid, { start = 0, limit = 500 } = {}) {
   });
 }
 
+/** Detiene (aborta) una tarea en ejecución en PBS. */
+export async function stopTask(auth, upid) {
+  return pbsCall(auth, { method: 'DELETE', path: `/nodes/${nodeOf(auth)}/tasks/${encodeURIComponent(upid)}` });
+}
+
 // ---------------------------------------------------------------------------
 // Helpers de error
 // ---------------------------------------------------------------------------

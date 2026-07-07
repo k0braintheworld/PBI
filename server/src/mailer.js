@@ -357,6 +357,43 @@ export function buildGroupSummaryEmail(summary, { sede, names = {} } = {}) {
   return { subject, html, text };
 }
 
+/**
+ * Aviso de que hay una versión nueva de PBI publicada. Incluye la versión, la
+ * versión actual y las notas del release (texto tal cual de GitHub, sin ejecutar
+ * ni interpretar nada: se muestra escapado).
+ */
+export function buildUpdateEmail({ version, current, notes, url }, { sede } = {}) {
+  const site = sede || 'PBI';
+  const subject = `[${site}] ⬆️ Nueva versión de PBI disponible: v${version}`;
+  const notesText = String(notes || '').trim();
+  const notesHtml = notesText
+    ? `<div style="white-space:pre-wrap;font-family:Consolas,monospace;font-size:12px;color:#1b2430;background:#f7f9fc;border:1px solid #eef1f5;border-radius:8px;padding:12px 14px;max-height:none">${escapeHtml(notesText.slice(0, 8000))}</div>`
+    : '<p style="font-size:13px;color:#6b7685">(El release no incluye notas.)</p>';
+
+  const bodyHtml = `
+    <p style="font-size:13.5px;color:#1b2430;margin:2px 0 12px">
+      Hay una versión más reciente de <b>PBI</b> publicada.
+      Tu versión actual es <b>v${escapeHtml(String(current || '—'))}</b> y la última es <b>v${escapeHtml(String(version))}</b>.
+    </p>
+    <div style="font-size:12.5px;color:#56616f;margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px;font-weight:600">Novedades</div>
+    ${notesHtml}
+    ${url ? `<p style="font-size:12.5px;margin:12px 0 0"><a href="${escapeHtml(url)}" style="color:#2257c4">Ver el release en GitHub</a></p>` : ''}
+    <p style="font-size:12px;color:#8b95a3;margin:12px 0 0">Puedes actualizar desde el propio panel (botón de actualización) o instalando el .deb.</p>`;
+
+  const html = shell({ site, header: `⬆️ PBI v${version} disponible`, headerColor: '#2257c4', headerBg: '#e9f0fb', bodyHtml });
+  const text = [
+    `${site} — Nueva versión de PBI: v${version} (actual: v${current || '—'})`,
+    '',
+    'Novedades:',
+    notesText || '(sin notas)',
+    '',
+    url ? `Release: ${url}` : '',
+    'Actualiza desde el panel o instalando el .deb.',
+  ].filter(Boolean).join('\n');
+
+  return { subject, html, text };
+}
+
 /** Email de prueba. */
 export function buildTestEmail({ hostName, sede } = {}) {
   const site = sede || 'PBI';

@@ -21,6 +21,7 @@ const DEFAULTS = {
   notifyOk: true,
   notifyFail: true,
   notifyRestore: true,
+  notifyUpdates: true, // avisar por email cuando hay una versión nueva de PBI
   silenceProxmox: false,
   types: ['backup', 'verify', 'prune', 'sync', 'garbage_collection'],
   smtp: { host: '', port: 587, secure: false, user: '', pass: '', from: '', to: '' },

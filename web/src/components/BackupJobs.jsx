@@ -36,6 +36,7 @@ export default function BackupJobs() {
   const [jobs, setJobs] = useState(null);
   const [guests, setGuests] = useState([]);
   const [storages, setStorages] = useState([]);
+  const [fleeceStores, setFleeceStores] = useState([]);
   const [err, setErr] = useState(null);
   const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null);
@@ -62,6 +63,9 @@ export default function BackupJobs() {
         if (node) {
           const st = await api.pveStorages(pveId, node);
           setStorages((st || []).filter((s) => s.type === 'pbs'));
+          // Para el fleecing hace falta un almacenamiento LOCAL que admita imágenes
+          // (no el destino PBS): dir/lvm/lvmthin/zfs/btrfs… con content «images».
+          setFleeceStores((st || []).filter((s) => s.type !== 'pbs' && String(s.content || '').includes('images')));
         }
       } catch { /* opcional */ }
     } catch (e) { setErr(e.message); setJobs([]); }
@@ -155,7 +159,7 @@ export default function BackupJobs() {
 
       {editing && (
         <JobModal
-          pveId={pveId} job={editing} guests={guests} storages={storages}
+          pveId={pveId} job={editing} guests={guests} storages={storages} fleeceStores={fleeceStores}
           onClose={() => setEditing(null)}
           onSaved={() => { setEditing(null); load(); }}
           onError={(m) => setMsg(`Error: ${m}`)}
@@ -165,7 +169,10 @@ export default function BackupJobs() {
   );
 }
 
-function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
+// Parseo de property-strings de PVE ("clave=valor,clave=valor").
+const parsePropStr = (s) => (!s ? {} : Object.fromEntries(String(s).split(',').map((p) => p.split('=')).filter((kv) => kv[0])));
+
+function JobModal({ pveId, job, guests, storages, fleeceStores = [], onClose, onSaved, onError }) {
   const tr = useT();
   const isNew = !job.id;
   const init = () => {
@@ -173,6 +180,8 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
     const obj = !pb ? {} : (typeof pb === 'string' ? Object.fromEntries(pb.split(',').map((p) => p.split('='))) : pb);
     const keep = { ...emptyKeep };
     for (const [k] of KEEP_FIELDS) if (obj[`keep-${k}`]) keep[k] = obj[`keep-${k}`];
+    const fl = parsePropStr(job.fleecing);
+    const perf = parsePropStr(job.performance);
     return {
       comment: job.comment || '',
       schedule: job.schedule || '02:00',
@@ -183,11 +192,17 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
       selAll: !!job.all,
       vmids: new Set(job.vmid ? String(job.vmid).split(',') : []),
       keep,
+      // Rendimiento (opcional)
+      bwlimit: job.bwlimit ? String(job.bwlimit) : '',
+      fleecing: fl.enabled === '1' || fl.enabled === 1,
+      fleeceStorage: fl.storage || '',
+      maxWorkers: perf['max-workers'] ? String(perf['max-workers']) : '',
     };
   };
   const [form, setForm] = useState(init);
   const [busy, setBusy] = useState(false);
   const [encryptHelp, setEncryptHelp] = useState(false);
+  const [info, setInfo] = useState(null); // { title, body } para el popup de ayuda "i"
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
   const toggleVm = (vmid) => setForm((f) => {
     const s = new Set(f.vmids);
@@ -201,6 +216,7 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
     if (!form.selAll && form.vmids.size === 0) { onError(tr('Selecciona al menos una máquina o marca «Todas»')); return; }
     if (!form.storage) { onError(tr('Selecciona el almacenamiento destino')); return; }
     if (!form.schedule.trim()) { onError(tr('Indica una programación')); return; }
+    if (form.fleecing && !form.fleeceStorage) { onError(tr('Elige el almacenamiento local para el fleecing')); return; }
     setBusy(true);
     try {
       const prune = KEEP_FIELDS.map(([k]) => (form.keep[k] ? `keep-${k}=${form.keep[k]}` : null)).filter(Boolean).join(',');
@@ -214,12 +230,21 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
       };
       if (form.encrypt) body.encrypt = 1;
       if (prune) body['prune-backups'] = prune;
+      // Rendimiento (opcional)
+      const bw = parseInt(form.bwlimit, 10);
+      if (Number.isFinite(bw) && bw > 0) body.bwlimit = bw;
+      if (form.fleecing) body.fleecing = `enabled=1,storage=${form.fleeceStorage}`;
+      const mw = parseInt(form.maxWorkers, 10);
+      if (Number.isFinite(mw) && mw > 0) body.performance = `max-workers=${mw}`;
       const del = [];
       if (form.selAll) { body.all = 1; del.push('vmid', 'pool'); }
       else { body.vmid = [...form.vmids].join(','); del.push('all', 'pool'); }
       if (!prune && !isNew) del.push('prune-backups');
       if (!form.comment && !isNew) del.push('comment');
       if (!isNew && !form.encrypt) del.push('encrypt');
+      if (!isNew && !(Number.isFinite(bw) && bw > 0)) del.push('bwlimit');
+      if (!isNew && !form.fleecing) del.push('fleecing');
+      if (!isNew && !(Number.isFinite(mw) && mw > 0)) del.push('performance');
       if (!isNew && del.length) body.delete = del.filter((d) => d !== 'comment' || !form.comment).join(',');
 
       if (isNew) await api.pveCreateBackupJob(pveId, body);
@@ -326,13 +351,122 @@ function JobModal({ pveId, job, guests, storages, onClose, onSaved, onError }) {
             </label>
           </div>
 
+          <div style={{ margin: '4px 0 16px', padding: '10px 12px', border: '1px solid var(--border)', borderRadius: 8 }}>
+            <div style={{ fontWeight: 500, fontSize: 13.5, marginBottom: 2 }}>{tr('Rendimiento (opcional)')}</div>
+            <p className="muted" style={{ fontSize: 12, marginTop: 0, marginBottom: 10 }}>
+              {tr('Ajustes para reducir el impacto de la copia en el rendimiento de la máquina (útil en VMs grandes o primeros backups largos).')}
+            </p>
+
+            <div className="row">
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {tr('Límite de velocidad')}
+                  <InfoDot onClick={() => setInfo(INFO.bwlimit(tr))} tr={tr} />
+                  {form.bwlimit !== '' && <ResetBtn onClick={() => set('bwlimit', '')} tr={tr} />}
+                </label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <input className="input" type="number" min="0" placeholder="0" value={form.bwlimit} onChange={(e) => set('bwlimit', e.target.value)} />
+                  <span className="muted" style={{ fontSize: 12 }}>KiB/s</span>
+                </div>
+              </div>
+              <div className="field">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {tr('Lectores en paralelo')}
+                  <InfoDot onClick={() => setInfo(INFO.maxWorkers(tr))} tr={tr} />
+                  {form.maxWorkers !== '' && <ResetBtn onClick={() => set('maxWorkers', '')} tr={tr} />}
+                </label>
+                <input className="input" type="number" min="1" max="32" placeholder={tr('por defecto 16')} value={form.maxWorkers} onChange={(e) => set('maxWorkers', e.target.value)} />
+              </div>
+            </div>
+
+            <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 4 }}>
+              <input type="checkbox" checked={form.fleecing} onChange={(e) => set('fleecing', e.target.checked)} />
+              <span>{tr('Backup fleecing')}</span>
+              <InfoDot onClick={() => setInfo(INFO.fleecing(tr))} tr={tr} />
+              <span className="muted" style={{ fontSize: 11.5 }}>{tr('(PVE 8.2+)')}</span>
+              {form.fleecing && <ResetBtn onClick={() => { set('fleecing', false); set('fleeceStorage', ''); }} tr={tr} />}
+            </label>
+            {form.fleecing && (
+              <div className="field" style={{ marginTop: 8 }}>
+                <label>{tr('Almacenamiento local para el fleecing')}</label>
+                <select value={form.fleeceStorage} onChange={(e) => set('fleeceStorage', e.target.value)}>
+                  <option value="">{tr('— elegir —')}</option>
+                  {fleeceStores.map((s) => <option key={s.storage} value={s.storage}>{`${s.storage} (${s.type})`}</option>)}
+                  {form.fleeceStorage && !fleeceStores.some((s) => s.storage === form.fleeceStorage) && <option value={form.fleeceStorage}>{form.fleeceStorage}</option>}
+                </select>
+                {!fleeceStores.length && <p className="muted" style={{ fontSize: 11.5, marginTop: 4 }}>{tr('No se han detectado almacenamientos locales con soporte de imágenes; escribe el nombre si sabes cuál usar.')}</p>}
+              </div>
+            )}
+          </div>
+
           {encryptHelp && <EncryptHelpModal onClose={() => setEncryptHelp(false)} storage={form.storage} tr={tr} />}
+          {info && <InfoModal info={info} onClose={() => setInfo(null)} tr={tr} />}
 
           <div className="btn-row" style={{ justifyContent: 'flex-end' }}>
             <button type="button" className="btn" onClick={onClose}>{tr('Cancelar')}</button>
             <button className="btn primary" disabled={busy}>{busy ? tr('Guardando…') : tr('Guardar')}</button>
           </div>
         </form>
+      </div>
+    </div>
+  );
+}
+
+// Botón "i" redondo que abre el popup de ayuda de una característica.
+function InfoDot({ onClick, tr }) {
+  return (
+    <button type="button" onClick={onClick} aria-label={tr('Más información')} title={tr('Más información')}
+      style={{ flexShrink: 0, width: 16, height: 16, lineHeight: '15px', textAlign: 'center', borderRadius: '50%', border: '1px solid var(--border)', background: 'var(--surface-2)', color: 'var(--text-2)', fontSize: 11, fontStyle: 'italic', fontWeight: 700, cursor: 'pointer', padding: 0, fontFamily: 'Georgia, serif' }}>
+      i
+    </button>
+  );
+}
+
+// Botón pequeño para restablecer un ajuste a su valor por defecto de Proxmox.
+function ResetBtn({ onClick, tr }) {
+  return (
+    <button type="button" className="btn sm ghost" onClick={onClick} title={tr('Volver al valor por defecto')}
+      style={{ padding: '1px 7px', fontSize: 11, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+      <Icon.refresh width={11} height={11} /> {tr('Por defecto')}
+    </button>
+  );
+}
+
+// Contenido de los popups de ayuda de cada ajuste de rendimiento. Cada uno incluye
+// un valor recomendado para VMs críticas cuyo rendimiento no debe verse mermado.
+const INFO = {
+  bwlimit: (tr) => ({
+    title: tr('Límite de velocidad (bwlimit)'),
+    body: tr('Limita la velocidad de la copia, en KiB/s. Suaviza el impacto de la copia en el rendimiento de la máquina a cambio de que tarde más. 0 (o vacío) = sin límite propio (usa el valor global de Proxmox). Referencia: 102400 KiB/s ≈ 100 MiB/s.'),
+    rec: tr('VM crítica: limita a una fracción de tu disco/red, por ejemplo 30–50 MiB/s (30720–51200 KiB/s). La copia irá más lenta, pero la VM seguirá funcionando con normalidad.'),
+  }),
+  maxWorkers: (tr) => ({
+    title: tr('Lectores en paralelo (max-workers)'),
+    body: tr('Número de hilos que leen el disco a la vez durante la copia (por defecto 16 en QEMU). Bajarlo reduce la presión de I/O sobre el almacenamiento y el impacto en la máquina en marcha, a cambio de ir más lento. Vacío = valor por defecto de Proxmox.'),
+    rec: tr('VM crítica: 1 (un solo lector). Minimiza la contención de disco; la copia tarda más, pero la VM apenas nota que se está copiando.'),
+  }),
+  fleecing: (tr) => ({
+    title: tr('Backup fleecing (PVE 8.2+)'),
+    body: tr('Guarda temporalmente, en un almacenamiento local, los bloques que la máquina sobrescribe mientras se hace la copia. Así las escrituras del sistema operativo no tienen que esperar al ritmo del backup, reduciendo mucho el impacto en el rendimiento de la VM durante la copia (sobre todo con destinos lentos o primeros backups largos). Necesita un almacenamiento local rápido con espacio para imágenes; esa área temporal se libera al terminar.'),
+    rec: tr('VM crítica: actívalo con un almacenamiento local rápido. Es lo que más protege el rendimiento: la VM sigue funcionando con normalidad aunque la copia tarde más.'),
+  }),
+};
+
+function InfoModal({ info, onClose, tr }) {
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" style={{ maxWidth: 460 }} onClick={(e) => e.stopPropagation()}>
+        <h3 style={{ marginTop: 0 }}>{info.title}</h3>
+        <p style={{ fontSize: 13.5, lineHeight: 1.6, color: 'var(--text)' }}>{info.body}</p>
+        {info.rec && (
+          <div style={{ display: 'flex', gap: 9, alignItems: 'flex-start', background: 'var(--info-soft)', border: '1px solid #cfe0fb', color: '#2257c4', padding: '9px 12px', borderRadius: 8, fontSize: 12.5 }}>
+            <span style={{ flexShrink: 0, marginTop: 1 }}><Icon.shield width={15} height={15} /></span>
+            <span><b>{tr('Recomendado')}</b> · {info.rec}</span>
+          </div>
+        )}
+        <div className="btn-row" style={{ justifyContent: 'flex-end', marginTop: 14 }}>
+          <button className="btn primary" onClick={onClose}>{tr('Entendido')}</button>
+        </div>
       </div>
     </div>
   );

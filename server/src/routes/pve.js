@@ -152,6 +152,14 @@ pveRouter.get('/:id/tasks/:upid/log', wrap(async (req, res) => {
   }));
 }));
 
+// Detener una tarea en ejecución en PVE (p. ej. un vzdump en curso).
+pveRouter.post('/:id/tasks/:upid/stop', wrap(async (req, res) => {
+  const h = raw(req, res); if (!h) return;
+  await pve.pveStopTask(h, req.params.upid);
+  audit(req, 'pve.task_stop', req.params.upid, 'ok', 'Tarea de PVE detenida desde el monitor');
+  res.json({ ok: true });
+}));
+
 // --- Restauración granular de ficheros ---
 pveRouter.get('/:id/file-restore/list', wrap(async (req, res) => {
   const h = raw(req, res); if (!h) return;

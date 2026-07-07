@@ -617,6 +617,7 @@ function NotifySettings() {
     api.notifyGet().then((c) => setForm({
       enabled: c.enabled, notifyOk: c.notifyOk, notifyFail: c.notifyFail,
       notifyRestore: c.notifyRestore !== false,
+      notifyUpdates: c.notifyUpdates !== false,
       silenceProxmox: !!c.silenceProxmox,
       rpo: { enabled: !!c.rpo?.enabled, hours: c.rpo?.hours ?? 26 },
       digest: {
@@ -639,7 +640,7 @@ function NotifySettings() {
 
   function payload() {
     const body = {
-      enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, notifyRestore: form.notifyRestore, types: form.types,
+      enabled: form.enabled, notifyOk: form.notifyOk, notifyFail: form.notifyFail, notifyRestore: form.notifyRestore, notifyUpdates: form.notifyUpdates, types: form.types,
       rpo: { enabled: !!form.rpo.enabled, hours: Math.max(1, Math.min(720, Number(form.rpo.hours) || 26)) },
       digest: {
         enabled: !!form.digest.enabled, time: form.digest.time || '08:00',
@@ -696,6 +697,10 @@ function NotifySettings() {
             <input type="checkbox" checked={form.notifyRestore} onChange={(e) => set('notifyRestore', e.target.checked)} /><span className="muted">{tr('Avisar de restauraciones')}</span>
           </label>
         </div>
+        <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 8 }}>
+          <input type="checkbox" checked={form.notifyUpdates} onChange={(e) => set('notifyUpdates', e.target.checked)} />
+          <span className="muted">{tr('Avisar por email de nuevas versiones de PBI (con las novedades del release)')}</span>
+        </label>
 
         <div className="field" style={{ marginTop: 10 }}>
           <label>{tr('Tipos de tarea a notificar')}</label>

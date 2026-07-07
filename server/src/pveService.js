@@ -179,6 +179,12 @@ export function pveTaskLog(pve, upid, { start = 0, limit = 500 } = {}) {
   });
 }
 
+/** Detiene (aborta) una tarea en ejecución en PVE (p. ej. un vzdump en curso). */
+export function pveStopTask(pve, upid) {
+  const node = nodeFromUpid(upid);
+  return pveCall(pve, { method: 'DELETE', path: `/nodes/${encodeURIComponent(node)}/tasks/${encodeURIComponent(upid)}` });
+}
+
 /** Lista ficheros del interior de un backup (file-restore de PVE). */
 export function pveFileList(pve, { node, storage, volume, filepath }) {
   return pveCall(pve, {

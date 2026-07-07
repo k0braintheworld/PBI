@@ -53,6 +53,10 @@ Guided restore through Proxmox VE, without touching the console:
   etc.), machine selection, retention, PBS target and **encryption** option (`encrypt`).
   An integrated **Help** button explains how to configure the encryption key in PVE (GUI
   and CLI) and how to restore encrypted backups on a different cluster.
+- **Backup performance settings** (optional, with an "i" help popup and a recommended
+  value for critical VMs): **speed limit** (`bwlimit`), **parallel readers** (`max-workers`)
+  and **backup fleecing** (PVE 8.2+) so a long backup doesn't degrade the running machine's
+  performance; each setting has a "reset to default" button.
 - **Scheduled restores**: recurring **restore tests** (restore a VM's latest
   backup to a test VMID to validate that your backups are recoverable) or **one-off**
   restores at a future date/time. Per-job target (test VMID or overwrite, flagged as
@@ -69,7 +73,8 @@ Guided restore through Proxmox VE, without touching the console:
 History with **auto-refresh** every 5 s, an "only running" filter and a per-task **log
 viewer** that updates live. For **running backups** it shows the **percentage** and the
 **vzdump log (Proxmox VE side)** — the same one you see in the Proxmox console — rather
-than the PBS-side task (which reports no progress).
+than the PBS-side task (which reports no progress). Running tasks can be **stopped** from
+the monitor; for a backup, its *vzdump* task on PVE is aborted.
 
 ### Reports
 - **Executive summary**: success rate, successful/failed tasks, status per datastore.
@@ -110,6 +115,8 @@ partial summary is sent. Jobs included in a group stop notifying individually.
 - **Usage**: alert when a datastore exceeds the configured percentage.
 - **Daily digest** at your chosen time: last-24h failures, machines out of RPO, datastore
   usage and unprotected machines.
+- **New PBI version**: when a newer version is published, an email (once per version) with
+  the version number and the **release notes**. Configurable.
 
 Notifications are **enabled by default** once SMTP is configured (host + recipient).
 Option to **silence all of Proxmox's native notifications** (PVE and PBS) so only PBI

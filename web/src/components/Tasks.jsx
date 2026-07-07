@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useEffect, useRef, useState } from 'react';
 import { api, fmtDate, fmtDuration, fmtAgo } from '../api.js';
-import { useAsync, Loading, ErrorBox, TaskBadge, taskTypeLabel, parseProgress } from './common.jsx';
+import { useAsync, Loading, ErrorBox, TaskBadge, taskTypeLabel, parseProgress, confirmDialog } from './common.jsx';
 import { useGuestNames, vmidFromTaskId } from '../guestNames.js';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
@@ -27,6 +27,8 @@ export default function Tasks() {
 
   const [pveId, setPveId] = useState(null);
   const [pveRunningTasks, setPveRunningTasks] = useState([]);
+  const [stopMsg, setStopMsg] = useState(null);
+  const [stopping, setStopping] = useState(null); // upid en curso de detención
 
   const tasks = useAsync(
     () => api.tasks({ limit: 300, ...(onlyRunning ? { running: '1' } : {}) }),
@@ -76,6 +78,26 @@ export default function Tasks() {
     return m ? { id: pveId, upid: m.upid } : null;
   }
 
+  // Detener una tarea en marcha. Si es un backup con su vzdump de PVE emparejado,
+  // se detiene la tarea de PVE (la que realmente hace el trabajo); si no, la de PBS.
+  async function stop(task) {
+    const pve = matchPve(task);
+    const what = `${tr(taskTypeLabel(task.type))}${task.id ? ` · ${task.id}` : ''}`;
+    if (!(await confirmDialog({
+      message: `${tr('¿Detener la tarea en curso?')} ${what}. ${tr('Se abortará y quedará marcada como fallida/cancelada.')}`,
+      danger: true, confirmLabel: tr('Detener'),
+    }))) return;
+    setStopMsg(null); setStopping(task.upid);
+    try {
+      if (pve) await api.pveTaskStop(pve.id, pve.upid);
+      else await api.taskStop(task.upid);
+      setStopMsg(`${tr('Solicitada la detención de')} ${what}.`);
+      setTimeout(() => tasks.reload(), 1200);
+    } catch (e) {
+      setStopMsg(`Error: ${e.message}`);
+    } finally { setStopping(null); }
+  }
+
   return (
     <div className="rise">
       <div className="flex-between pagehead" style={{ flexWrap: 'wrap', gap: 10 }}>
@@ -101,6 +123,7 @@ export default function Tasks() {
           <Icon.clock width={15} height={15} /> {running.length} {tr('tarea(s) en ejecución ahora mismo.')}
         </div>
       )}
+      {stopMsg && <div className="banner" style={{ marginTop: running.length ? 8 : 0 }}>{stopMsg}</div>}
 
       <div className="card">
         {tasks.loading ? (
@@ -127,7 +150,16 @@ export default function Tasks() {
                   <td title={fmtDate(t.starttime)}>{fmtAgo(t.starttime)}</td>
                   <td className="mono">{fmtDuration(t.starttime, t.endtime)}</td>
                   <td>{t.endtime == null ? <RunningProgress upid={t.upid} pve={matchPve(t)} /> : <TaskBadge task={t} />}</td>
-                  <td><button className="btn sm ghost" onClick={() => setSelected(t)}>{tr('Ver log')}</button></td>
+                  <td>
+                    <div className="btn-row" style={{ flexWrap: 'nowrap' }}>
+                      <button className="btn sm ghost" onClick={() => setSelected(t)}>{tr('Ver log')}</button>
+                      {t.endtime == null && (
+                        <button className="btn sm ghost danger" disabled={stopping === t.upid} onClick={() => stop(t)}>
+                          {stopping === t.upid ? tr('Deteniendo…') : tr('Detener')}
+                        </button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))}
               {!rows.length && (
@@ -138,7 +170,14 @@ export default function Tasks() {
         )}
       </div>
 
-      {selected && <TaskLogModal task={selected} pve={matchPve(selected)} onClose={() => setSelected(null)} />}
+      {selected && (
+        <TaskLogModal
+          task={selected} pve={matchPve(selected)}
+          onStop={selected.endtime == null ? async () => { await stop(selected); setSelected(null); } : null}
+          stopping={stopping === selected.upid}
+          onClose={() => setSelected(null)}
+        />
+      )}
     </div>
   );
 }
@@ -169,7 +208,7 @@ function RunningProgress({ upid, pve }) {
   );
 }
 
-function TaskLogModal({ task, pve, onClose }) {
+function TaskLogModal({ task, pve, onClose, onStop, stopping }) {
   const tr = useT();
   const log = useAsync(
     () => (pve ? api.pveTaskLog(pve.id, pve.upid) : api.taskLog(task.upid)),
@@ -220,7 +259,14 @@ function TaskLogModal({ task, pve, onClose }) {
         )}
         <div className="btn-row" style={{ justifyContent: 'space-between', marginTop: 14 }}>
           <span className="muted" style={{ fontSize: 12, alignSelf: 'center' }}>{running ? (pve ? tr('Log de PVE (vzdump) · actualizándose cada 3 s…') : tr('Actualizándose cada 3 s…')) : `${tr('Finalizada')} · ${fmtDate(task.endtime)}`}</span>
-          <button className="btn" onClick={onClose}>{tr('Cerrar')}</button>
+          <div className="btn-row">
+            {onStop && (
+              <button className="btn danger" style={{ background: 'var(--err)', borderColor: 'var(--err)', color: '#fff' }} disabled={stopping} onClick={onStop}>
+                <Icon.x width={14} height={14} /> {stopping ? tr('Deteniendo…') : tr('Detener tarea')}
+              </button>
+            )}
+            <button className="btn" onClick={onClose}>{tr('Cerrar')}</button>
+          </div>
         </div>
       </div>
     </div>

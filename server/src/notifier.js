@@ -7,10 +7,11 @@ import { getDefaultPve, listPveRaw } from './pveStore.js';
 import { pveGuests, pveBackupJobs } from './pveService.js';
 import * as notifyStore from './notifyStore.js';
 import { getRaw as getReportCfg } from './reportStore.js';
-import { sendMail, buildTaskEmail, buildRpoEmail, buildStorageEmail, buildDigestEmail, buildGroupSummaryEmail } from './mailer.js';
+import { sendMail, buildTaskEmail, buildRpoEmail, buildStorageEmail, buildDigestEmail, buildGroupSummaryEmail, buildUpdateEmail } from './mailer.js';
 import { excludedSet } from './excludedVms.js';
 import * as groupStore from './taskGroupStore.js';
 import { ingest as ingestGroups, collectDue, matchesAnyMember } from './taskGroups.js';
+import { resolveVersion, cmpVersion } from './versionInfo.js';
 
 /**
  * Vigilante en segundo plano (multi-host):
@@ -24,6 +25,8 @@ import { ingest as ingestGroups, collectDue, matchesAnyMember } from './taskGrou
 
 const POLL_MS = 60_000;
 const ALERT_EVERY_TICKS = 15; // RPO/almacenamiento: cada ~15 min
+const UPDATE_EVERY_TICKS = 360; // comprobación de versión nueva: cada ~6 h
+const GITHUB_LATEST = 'https://api.github.com/repos/k0braintheworld/PBI/releases/latest';
 const isOk = (s) => s === 'OK' || /^WARNINGS/i.test(s || '');
 const todayKey = () => new Date().toLocaleDateString('en-CA'); // YYYY-MM-DD local
 
@@ -293,6 +296,39 @@ async function sendDigestIfDue(cfg, hosts, names, sede) {
   } catch (e) { console.error('[notifier] error resumen diario:', e.message); }
 }
 
+// --- Aviso de nueva versión de PBI --------------------------------------------
+// Consulta la última release en GitHub y, si es más reciente que la instalada,
+// envía un correo con la versión y las notas del release. Solo una vez por versión.
+async function checkUpdateAndNotify(cfg, sede) {
+  if (cfg.notifyUpdates === false) return;
+  const current = await resolveVersion();
+  if (!current) return; // sin versión conocida no se puede comparar con fiabilidad
+
+  let rel;
+  try {
+    const res = await fetch(GITHUB_LATEST, {
+      headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'PBI' },
+      signal: AbortSignal.timeout(10_000),
+    });
+    if (!res.ok) return;
+    rel = await res.json();
+  } catch { return; } // sin red / rate limit: se reintenta en el siguiente ciclo
+
+  const version = String(rel?.tag_name || '').replace(/^v/i, '').trim();
+  if (!version || cmpVersion(version, current) <= 0) return; // no hay nada más nuevo
+
+  const state = notifyStore.getRaw().state || {};
+  if (state.lastUpdateNotified === version) return; // ya avisado de esta versión
+
+  try {
+    await sendMail(cfg.smtp, buildUpdateEmail({
+      version, current, notes: rel.body || '', url: rel.html_url || '',
+    }, { sede }));
+    notifyStore.setState({ lastUpdateNotified: version });
+    console.log(`[notifier] aviso de nueva versión enviado: v${version}`);
+  } catch (e) { console.error('[notifier] error avisando de actualización:', e.message); }
+}
+
 // --- Bucle principal ----------------------------------------------------------
 
 async function poll() {
@@ -350,6 +386,7 @@ async function poll() {
 
     tick += 1;
     if (tick % ALERT_EVERY_TICKS === 1) await checkAlerts(cfg, hosts, names, sede);
+    if (tick % UPDATE_EVERY_TICKS === 2) await checkUpdateAndNotify(cfg, sede);
     await sendDigestIfDue(cfg, hosts, names, sede);
   } catch (e) {
     console.error('[notifier] error en el sondeo:', e.message);

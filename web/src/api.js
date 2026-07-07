@@ -104,6 +104,7 @@ export const api = {
     return req('GET', `/tasks${q ? `?${q}` : ''}`);
   },
   taskLog: (upid) => req('GET', `/tasks/${encodeURIComponent(upid)}/log`),
+  taskStop: (upid) => req('POST', `/tasks/${encodeURIComponent(upid)}/stop`),
   calendar: (from, to) => req('GET', `/calendar?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`),
   taskStatus: (upid) => req('GET', `/tasks/${encodeURIComponent(upid)}/status`),
 
@@ -131,6 +132,7 @@ export const api = {
   },
   pveTaskStatus: (id, upid) => req('GET', `/pve/${id}/tasks/${encodeURIComponent(upid)}/status`),
   pveTaskLog: (id, upid) => req('GET', `/pve/${id}/tasks/${encodeURIComponent(upid)}/log`),
+  pveTaskStop: (id, upid) => req('POST', `/pve/${id}/tasks/${encodeURIComponent(upid)}/stop`),
   pveFileList: (id, params) => req('GET', `/pve/${id}/file-restore/list?${new URLSearchParams(params)}`),
   pveFileDownloadUrl: (id, params) => `/api/pve/${id}/file-restore/download?${new URLSearchParams(params)}`,
 
