@@ -34,7 +34,10 @@ código de color (correcta / parcial / con fallo / sin copia) y el día actual r
 **almacenamiento con dos donuts** (uso físico del NAS y tamaño lógico total de las copias
 con factor de deduplicación); aviso de **máquinas sin proteger** (VMs de Proxmox VE sin
 ninguna copia en PBS); últimas copias; actividad reciente; y tendencia de transferencia
-diaria. El **inicio de semana** (lunes/domingo) es configurable.
+diaria. El **inicio de semana** (lunes/domingo) es configurable. El panel usa una **caché
+corta con refresco en segundo plano** por servidor: si PBS va lento (p. ej. durante un
+backup) muestra al instante el último estado conocido y lo actualiza cuando llega, en vez
+de quedarse «cargando».
 
 ### Copias de seguridad
 Explorador de **snapshots** por datastore con filtro por id/propietario/comentario,

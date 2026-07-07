@@ -10,6 +10,7 @@ import { requireOperator } from '../session.js';
 import { audit } from '../auditLog.js';
 import * as excludedVms from '../excludedVms.js';
 import { excludedSet } from '../excludedVms.js';
+import { createSwrCache } from '../swrCache.js';
 
 export const apiRouter = Router();
 
@@ -29,21 +30,29 @@ apiRouter.get('/overview', wrap(async (req, res) => {
   res.json(await pbs.getOverview(req.auth));
 }));
 
+// Caché stale-while-revalidate por host: si PBS va lento (p. ej. durante un
+// backup), el panel sigue mostrando el último estado al instante y se refresca en
+// segundo plano, en vez de quedarse "cargando". Clave = id del host activo.
+const dashCache = createSwrCache({ freshMs: 8000, staleMs: 60000 });
+
 apiRouter.get('/dashboard', wrap(async (req, res) => {
-  const dash = await pbs.getDashboard(req.auth);
-  // Máquinas de PVE sin ninguna copia en este PBS (excluye plantillas y las marcadas
-  // como "sin copia necesaria").
-  try {
-    const pve = getDefaultPve();
-    if (pve) {
-      const ids = new Set(dash.protectedIds || []);
-      const excluded = excludedSet();
-      const guests = await pveGuests(pve);
-      dash.unprotected = (guests || [])
-        .filter((g) => !g.template && !ids.has(String(g.vmid)) && !excluded.has(String(g.vmid)))
-        .map((g) => ({ vmid: g.vmid, name: g.name || '', type: g.type }));
-    }
-  } catch { /* sin PVE o inaccesible: omitir */ }
+  const dash = await dashCache.get(req.pbsHost.id, async () => {
+    const d = await pbs.getDashboard(req.auth);
+    // Máquinas de PVE sin ninguna copia en este PBS (excluye plantillas y las
+    // marcadas como "sin copia necesaria").
+    try {
+      const pve = getDefaultPve();
+      if (pve) {
+        const ids = new Set(d.protectedIds || []);
+        const excluded = excludedSet();
+        const guests = await pveGuests(pve);
+        d.unprotected = (guests || [])
+          .filter((g) => !g.template && !ids.has(String(g.vmid)) && !excluded.has(String(g.vmid)))
+          .map((g) => ({ vmid: g.vmid, name: g.name || '', type: g.type }));
+      }
+    } catch { /* sin PVE o inaccesible: omitir */ }
+    return d;
+  });
   res.json(dash);
 }));
 
@@ -52,12 +61,14 @@ apiRouter.get('/excluded-vms', (req, res) => res.json(excludedVms.list()));
 
 apiRouter.post('/excluded-vms', requireOperator, wrap(async (req, res) => {
   const out = excludedVms.add(req.body || {});
+  dashCache.invalidate(); // el cambio afecta a la lista de "sin proteger" del dashboard
   audit(req, 'excluded_vm.add', String(req.body?.vmid || ''), 'ok', `VM ${req.body?.vmid} marcada sin copia necesaria`);
   res.json(out);
 }));
 
 apiRouter.delete('/excluded-vms/:vmid', requireOperator, wrap(async (req, res) => {
   const out = excludedVms.remove(req.params.vmid);
+  dashCache.invalidate();
   audit(req, 'excluded_vm.remove', req.params.vmid, 'ok', `VM ${req.params.vmid} vuelve a vigilarse`);
   res.json(out);
 }));

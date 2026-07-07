@@ -33,7 +33,9 @@ partial / failed / no backup) with today highlighted; **storage with two donuts*
 NAS usage and the total logical size of all backups with the deduplication factor); an
 **unprotected machines** warning (Proxmox VE VMs with no backup in PBS); latest backups;
 recent activity; and a daily transfer trend. The **week start** (Monday/Sunday) is
-configurable.
+configurable. The panel uses a **short cache with background refresh** per server: if PBS
+is slow (e.g. during a backup) it shows the last known state instantly and updates it when
+the data arrives, instead of getting stuck "loading".
 
 ### Backups
 A per-datastore **snapshot** explorer with filtering by id/owner/comment, verification
