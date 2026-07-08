@@ -68,6 +68,22 @@ export default function UpdateModal({ onClose }) {
   const [pw, setPw] = useState('');
   const [install, setInstall] = useState(null);
   const [guide, setGuide] = useState(false);
+  const [countdown, setCountdown] = useState(null); // cuenta atrás antes de recargar
+
+  // Al instalarse: confirma y hace una cuenta atrás de 3 s antes de recargar,
+  // para que quede claro que PBI se está reiniciando.
+  function finishAndReload() {
+    setInstall({ ok: true });
+    let n = 3;
+    setCountdown(n);
+    const step = () => {
+      n -= 1;
+      if (n <= 0) { setCountdown(0); try { window.location.reload(); } catch { /* ignore */ } return; }
+      setCountdown(n);
+      setTimeout(step, 1000);
+    };
+    setTimeout(step, 1000);
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -116,20 +132,19 @@ export default function UpdateModal({ onClose }) {
   function pollStatus() {
     const started = Date.now();
     let netFails = 0;
-    const reload = () => setTimeout(() => { try { window.location.reload(); } catch { /* ignore */ } }, 4000);
     const tick = async () => {
       if (Date.now() - started > 7 * 60 * 1000) { setInstall({ timeout: true }); return; }
       try {
         const s = await api.updateStatus();
         netFails = 0;
-        if (s.state === 'ok') { setInstall({ ok: true }); reload(); return; }
+        if (s.state === 'ok') { finishAndReload(); return; }
         if (s.state === 'error') { setInstall({ error: s.phase || t('La instalación falló.') }); return; }
         setInstall({ busy: true, phase: s.phase || 'download', bytes: s.bytes || 0 });
         setTimeout(tick, s.phase === 'download' ? 1000 : 3000);
       } catch {
         // Sin respuesta: lo normal es que el servicio se esté reiniciando (éxito).
         netFails += 1;
-        if (netFails >= 4) { setInstall({ ok: true }); reload(); return; }
+        if (netFails >= 4) { finishAndReload(); return; }
         setTimeout(tick, 4000);
       }
     };
@@ -160,7 +175,13 @@ export default function UpdateModal({ onClose }) {
             )}
 
             {install?.ok ? (
-              <div className="banner">✓ {t('Actualización instalada. La página se recargará automáticamente.')}</div>
+              <div style={{ textAlign: 'center', background: 'var(--ok-soft, #e6f4ec)', border: '1px solid #a9d8bd', borderRadius: 10, padding: '18px 16px' }}>
+                <div style={{ fontSize: 22, marginBottom: 4 }}>✓</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#157a42' }}>{t('Actualización instalada. PBI se reiniciará ahora.')}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-2)', marginTop: 8 }}>
+                  {t('Recargando en')} <b style={{ fontFamily: 'var(--mono)', fontSize: 16, color: '#157a42' }}>{countdown ?? 3}</b> {t('s…')}
+                </div>
+              </div>
             ) : install?.timeout ? (
               <div style={{ background: 'var(--warn-soft)', border: '1px solid #f0d9a8', color: '#a06806', padding: '9px 12px', borderRadius: 8, fontSize: 12.5 }}>
                 {t('Está tardando más de lo normal (el gestor de paquetes puede estar ocupado). Comprueba la versión en unos minutos; si no cambió, vuelve a intentarlo.')}
