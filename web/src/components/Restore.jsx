@@ -29,6 +29,11 @@ export default function Restore({ goTo }) {
   const [vmid, setVmid] = useState(null);       // máquina seleccionada
   const [point, setPoint] = useState(null);     // backup (volid) seleccionado
   const [mode, setMode] = useState(null);       // 'full' | 'files'
+  // VMID a preseleccionar si se llega desde el calendario del dashboard.
+  const [pendingVmid, setPendingVmid] = useState(() => {
+    try { const v = sessionStorage.getItem('pbi.restore.vmid'); if (v) sessionStorage.removeItem('pbi.restore.vmid'); return v || null; }
+    catch { return null; }
+  });
 
   // Cargar conexiones PVE
   useEffect(() => {
@@ -78,6 +83,14 @@ export default function Restore({ goTo }) {
   }, [pveId, node, storage]);
 
   function reset() { setVmid(null); setPoint(null); setMode(null); }
+
+  // Al cargar los backups, si venimos del calendario con un VMID pendiente y existe
+  // en la lista, lo preseleccionamos.
+  useEffect(() => {
+    if (!pendingVmid || !backups) return;
+    if (backups.some((b) => String(b.vmid) === String(pendingVmid))) setVmid(String(pendingVmid));
+    setPendingVmid(null);
+  }, [backups, pendingVmid]);
 
   if (pve === null) return <Loading />;
 

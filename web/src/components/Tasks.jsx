@@ -23,6 +23,8 @@ export default function Tasks() {
   const [onlyRunning, setOnlyRunning] = useState(false);
   const [auto, setAuto] = useState(true);
   const [selected, setSelected] = useState(null);
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
   const names = useGuestNames();
 
   const [pveId, setPveId] = useState(null);
@@ -30,16 +32,25 @@ export default function Tasks() {
   const [stopMsg, setStopMsg] = useState(null);
   const [stopping, setStopping] = useState(null); // upid en curso de detención
 
+  // Filtro por fechas (epoch local): 'until' incluye el día completo de 'toDate'.
+  const since = fromDate ? Math.floor(new Date(`${fromDate}T00:00:00`).getTime() / 1000) : null;
+  const until = toDate ? Math.floor(new Date(`${toDate}T00:00:00`).getTime() / 1000) + 86400 : null;
+
   const tasks = useAsync(
-    () => api.tasks({ limit: 300, ...(onlyRunning ? { running: '1' } : {}) }),
-    [onlyRunning],
+    () => api.tasks({
+      limit: since || until ? 2000 : 300,
+      ...(onlyRunning ? { running: '1' } : {}),
+      ...(since ? { since } : {}),
+      ...(until ? { until } : {}),
+    }),
+    [onlyRunning, since, until],
   );
 
   useEffect(() => {
-    if (!auto) return;
+    if (!auto || fromDate || toDate) return; // al filtrar por fechas se mira histórico, sin refresco
     const t = setInterval(() => tasks.reload(), 5000);
     return () => clearInterval(t);
-  }, [auto, tasks]);
+  }, [auto, tasks, fromDate, toDate]);
 
   const rows = (tasks.data || []).filter((t) => !type || t.type === type);
   const running = (tasks.data || []).filter((t) => t.endtime == null);
@@ -106,12 +117,21 @@ export default function Tasks() {
             <button key={f.key} className={type === f.key ? 'active' : ''} onClick={() => setType(f.key)}>{tr(f.label)}</button>
           ))}
         </div>
-        <div className="btn-row" style={{ alignItems: 'center' }}>
+        <div className="btn-row" style={{ alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-2)' }}>
+            {tr('Desde')}
+            <input className="input" type="date" style={{ width: 150 }} max={toDate || undefined} value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+          </label>
+          <label style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--text-2)' }}>
+            {tr('Hasta')}
+            <input className="input" type="date" style={{ width: 150 }} min={fromDate || undefined} value={toDate} onChange={(e) => setToDate(e.target.value)} />
+          </label>
+          {(fromDate || toDate) && <button className="btn sm ghost" onClick={() => { setFromDate(''); setToDate(''); }}>{tr('Limpiar')}</button>}
           <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13, color: 'var(--text-2)' }}>
             <input type="checkbox" checked={onlyRunning} onChange={(e) => setOnlyRunning(e.target.checked)} /> {tr('Solo en ejecución')}
           </label>
-          <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13, color: 'var(--text-2)' }}>
-            <input type="checkbox" checked={auto} onChange={(e) => setAuto(e.target.checked)} /> {tr('Auto-refresco')}
+          <label style={{ display: 'flex', gap: 7, alignItems: 'center', fontSize: 13, color: 'var(--text-2)', opacity: (fromDate || toDate) ? 0.45 : 1 }} title={(fromDate || toDate) ? tr('Desactivado al filtrar por fechas') : ''}>
+            <input type="checkbox" checked={auto && !(fromDate || toDate)} disabled={!!(fromDate || toDate)} onChange={(e) => setAuto(e.target.checked)} /> {tr('Auto-refresco')}
           </label>
           <button className="btn sm" onClick={() => tasks.reload()}><Icon.refresh width={14} height={14} /> {tr('Refrescar')}</button>
           <a className="btn sm" href={api.csvUrl('tasks')}><Icon.download width={14} height={14} /> CSV</a>

@@ -405,13 +405,19 @@ export async function getBackupCalendar(auth, { from, to }) {
   } catch {
     tasks = [];
   }
+  // VMID y tipo (vm/ct) del worker id de la tarea de backup ("store:vm/100/…").
+  const vmidOf = (id) => { const m = /(?:vm|ct|qemu|lxc)[/-](\d+)/i.exec(id || ''); return m ? m[1] : null; };
+  const typeOf = (id) => { const m = /[^:]+:(vm|ct|host|file)\//.exec(id || ''); return m ? m[1] : null; };
+
   const buckets = new Map();
   for (const t of tasks) {
     if (t.type !== 'backup' || !t.starttime) continue;
     const key = new Date(t.starttime * 1000).toISOString().slice(0, 10);
-    const b = buckets.get(key) || { total: 0, failed: 0, ok: 0 };
+    const b = buckets.get(key) || { total: 0, failed: 0, ok: 0, machines: new Map() };
     b.total += 1;
     if (t.endtime != null) { if (isTaskOk(t.status)) b.ok += 1; else b.failed += 1; }
+    const vmid = vmidOf(t.id);
+    if (vmid && !b.machines.has(vmid)) b.machines.set(vmid, { vmid, type: typeOf(t.id) });
     buckets.set(key, b);
   }
   const out = [];
@@ -424,7 +430,10 @@ export async function getBackupCalendar(auth, { from, to }) {
       else if (b.failed > 0) status = 'failed';
       else if (b.total > 0) status = 'ok';
     }
-    out.push({ date: key, status, total: b?.total || 0, failed: b?.failed || 0 });
+    out.push({
+      date: key, status, total: b?.total || 0, failed: b?.failed || 0,
+      machines: b ? [...b.machines.values()].sort((a, c) => Number(a.vmid) - Number(c.vmid)) : [],
+    });
   }
   return out;
 }

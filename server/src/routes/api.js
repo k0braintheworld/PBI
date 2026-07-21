@@ -120,12 +120,14 @@ apiRouter.post('/jobs/:kind/:id/run', requireOperator, wrap(async (req, res) => 
 // --- Tareas ----------------------------------------------------------------
 
 apiRouter.get('/tasks', wrap(async (req, res) => {
-  const { limit, running, store, type } = req.query;
+  const { limit, running, store, type, since, until } = req.query;
   res.json(await pbs.listTasks(req.auth, {
     limit: limit ? Number(limit) : undefined,
     running: running === '1' || running === 'true',
     store,
     type,
+    since: since ? Number(since) : undefined,
+    until: until ? Number(until) : undefined,
   }));
 }));
 

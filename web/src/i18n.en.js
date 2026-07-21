@@ -196,6 +196,8 @@ export const EN = {
   'Todas': 'All',
   'Copias': 'Backups',
   'Solo en ejecución': 'Only running',
+  'Desactivado al filtrar por fechas': 'Disabled while filtering by date',
+  'Recuperar esta máquina': 'Recover this machine',
   'Auto-refresco': 'Auto-refresh',
   'Refrescar': 'Refresh',
   'tarea(s) en ejecución ahora mismo.': 'task(s) running right now.',

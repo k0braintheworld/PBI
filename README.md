@@ -30,7 +30,9 @@ contraseña y 2FA opcional**, y la interfaz está disponible en **español e ing
 Panel: nº de datastores, snapshots, grupos protegidos y verificaciones fallidas;
 **dispositivos protegidos** por tipo (VM / CT / Host); **calendario de copias mensual y
 navegable** (flechas para cambiar de mes) que muestra el **nº de copias por día** con
-código de color (correcta / parcial / con fallo / sin copia) y el día actual resaltado;
+código de color (correcta / parcial / con fallo / sin copia) y el día actual resaltado —
+al pasar el ratón por un día se listan las **máquinas copiadas** (con su nombre) y puedes
+**pulsar una para ir directo a su recuperación**;
 **almacenamiento con dos donuts** (uso físico del NAS y tamaño lógico total de las copias
 con factor de deduplicación); aviso de **máquinas sin proteger** (VMs de Proxmox VE sin
 ninguna copia en PBS); últimas copias; actividad reciente; y tendencia de transferencia
@@ -78,8 +80,8 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
   sintaxis de *calendar event* de systemd.
 
 ### Monitor de tareas
-Historial con **auto-refresco** cada 5 s, filtro «solo en ejecución» y visor de **log por
-tarea** que se actualiza en vivo. Para los **backups en curso** muestra el **porcentaje** y
+Historial con **auto-refresco** cada 5 s, **filtro por fechas** (desde/hasta), filtro
+«solo en ejecución» y visor de **log por tarea** que se actualiza en vivo. Para los **backups en curso** muestra el **porcentaje** y
 el **log de vzdump (lado Proxmox VE)** —el mismo que ves en la consola de Proxmox—, no el
 del lado PBS (que no reporta progreso). Las tareas en ejecución se pueden **detener**
 (*stop*) desde el propio monitor; si es un backup, se aborta su tarea *vzdump* en PVE.

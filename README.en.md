@@ -29,7 +29,9 @@ optional 2FA**, and the interface is available in **Spanish and English**.
 Panel: datastore, snapshot, protected-group and failed-verification counts; **protected
 devices** by type (VM / CT / Host); a **monthly, navigable backup calendar** (arrows to
 change month) showing the **number of backups per day**, colour-coded (successful /
-partial / failed / no backup) with today highlighted; **storage with two donuts** (physical
+partial / failed / no backup) with today highlighted — hovering a day lists the **backed-up
+machines** (with their names) and you can **click one to jump straight to its recovery**;
+**storage with two donuts** (physical
 NAS usage and the total logical size of all backups with the deduplication factor); an
 **unprotected machines** warning (Proxmox VE VMs with no backup in PBS); latest backups;
 recent activity; and a daily transfer trend. The **week start** (Monday/Sunday) is
@@ -74,7 +76,8 @@ Guided restore through Proxmox VE, without touching the console:
   *calendar event* syntax.
 
 ### Task monitor
-History with **auto-refresh** every 5 s, an "only running" filter and a per-task **log
+History with **auto-refresh** every 5 s, a **date-range filter** (from/to), an "only
+running" filter and a per-task **log
 viewer** that updates live. For **running backups** it shows the **percentage** and the
 **vzdump log (Proxmox VE side)** — the same one you see in the Proxmox console — rather
 than the PBS-side task (which reports no progress). Running tasks can be **stopped** from

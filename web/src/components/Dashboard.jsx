@@ -192,7 +192,7 @@ export default function Dashboard({ goTo, user }) {
               <h3>{t('Calendario de copias de seguridad')}</h3>
               <MonthNav month={month} setMonth={setMonth} t={t} />
             </div>
-            <Calendar month={month} />
+            <Calendar month={month} goTo={goTo} names={names} />
             <div className="cal-legend">
               <span><i style={{ background: 'var(--ok)' }} /> {t('Correcta')}</span>
               <span><i style={{ background: 'var(--warn)' }} /> {t('Parcial')}</span>
@@ -291,12 +291,19 @@ function MonthNav({ month, setMonth, t }) {
   );
 }
 
-function Calendar({ month }) {
+function Calendar({ month, goTo, names = {} }) {
   const t = useT();
   // Inicio de semana configurable (Configuración › Preferencias). Por defecto, lunes.
   const weekStart = (typeof localStorage !== 'undefined' && localStorage.getItem('pbi_week_start')) || 'mon';
   const colOf = (dow) => (weekStart === 'mon' ? (dow + 6) % 7 : dow); // dow: 0=Dom
   const [data, setData] = useState(null);
+  const [hover, setHover] = useState(null); // fecha con el tooltip abierto
+
+  // Ir a Recuperación preseleccionando la máquina (vía sessionStorage, la lee Restore).
+  const openRestore = (vmid) => {
+    try { sessionStorage.setItem('pbi.restore.vmid', String(vmid)); } catch { /* ignore */ }
+    goTo?.('restore');
+  };
 
   useEffect(() => {
     const mm = String(month.m + 1).padStart(2, '0');
@@ -332,18 +339,46 @@ function Calendar({ month }) {
         return (
           <div className="cal-row" key={wi}>
             <span className="wk">{label}</span>
-            {wk.map((c, ci) => (
-              <div className={`cal-cell ${c && c.date === todayKey ? 'today' : ''}`} key={ci}>
-                {c && (
-                  <div
-                    className={`cal-sq ${c.status} ${c.date === todayKey ? 'today' : ''}`}
-                    title={`${c.date} · ${statusText(c, t)}`}
-                  >
-                    {calCount(c)}
-                  </div>
-                )}
-              </div>
-            ))}
+            {wk.map((c, ci) => {
+              const hasMachines = c && c.machines && c.machines.length > 0;
+              return (
+                <div
+                  className={`cal-cell ${c && c.date === todayKey ? 'today' : ''}`} key={ci}
+                  style={{ position: 'relative' }}
+                  onMouseEnter={() => hasMachines && setHover(c.date)}
+                  onMouseLeave={() => setHover(null)}
+                >
+                  {c && (
+                    <div
+                      className={`cal-sq ${c.status} ${c.date === todayKey ? 'today' : ''}`}
+                      title={hasMachines ? undefined : `${c.date} · ${statusText(c, t)}`}
+                    >
+                      {calCount(c)}
+                    </div>
+                  )}
+                  {c && hover === c.date && hasMachines && (
+                    <div className="cal-tip" style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', marginTop: 4, zIndex: 30, background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: 'var(--shadow-md, 0 6px 20px rgba(0,0,0,.14))', padding: '7px 8px', minWidth: 170, textAlign: 'left' }}>
+                      <div className="muted" style={{ fontSize: 11, marginBottom: 5, whiteSpace: 'nowrap' }}>{ddmm(c.date)} · {statusText(c, t)}</div>
+                      <div style={{ maxHeight: 200, overflowY: 'auto' }}>
+                        {c.machines.map((m) => (
+                          <button
+                            key={m.vmid} type="button" className="cal-tip-item"
+                            onClick={() => openRestore(m.vmid)}
+                            title={t('Recuperar esta máquina')}
+                            style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 6px', borderRadius: 6, fontSize: 12.5, color: 'var(--text)' }}
+                          >
+                            <span style={{ color: 'var(--text-3)', flexShrink: 0 }}>{m.type === 'ct' ? <Icon.server width={13} height={13} /> : <Icon.desktop width={13} height={13} />}</span>
+                            <span className="mono" style={{ flexShrink: 0 }}>{m.vmid}</span>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{names[m.vmid] || ''}</span>
+                            <Icon.chevronRight width={12} height={12} style={{ marginLeft: 'auto', color: 'var(--text-3)', flexShrink: 0 }} />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         );
       })}
