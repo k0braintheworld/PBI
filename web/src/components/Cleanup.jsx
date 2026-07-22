@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useState, useEffect } from 'react';
 import { api, fmtBytes, fmtDate, fmtAgo } from '../api.js';
-import { useAsync, Loading, ErrorBox, confirmDialog } from './common.jsx';
+import { useAsync, Loading, ErrorBox, confirmDialog, NsBadge } from './common.jsx';
 import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
 import ScheduleField from './ScheduleField.jsx';
@@ -107,7 +107,7 @@ export default function Cleanup() {
                       : g.orphan === false ? <span className="badge ok">{t('activa')}</span>
                         : <span className="badge muted">—</span>}
                 </td>
-                <td className="mono" style={{ fontSize: 12 }}>{g.store}{g.ns ? <span className="badge muted plain" style={{ marginLeft: 5 }} title={t('Namespace')}>{g.ns}</span> : ''}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{g.store}<NsBadge ns={g.ns} /></td>
                 <td className="num">{g.count}</td>
                 <td className="num">{fmtBytes(g.size)}</td>
                 <td className="num" title={fmtDate(g.last)}>{fmtAgo(g.last)}</td>

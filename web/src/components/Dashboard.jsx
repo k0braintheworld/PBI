@@ -2,7 +2,7 @@
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useState, useEffect } from 'react';
 import { api, fmtBytes, fmtDate, fmtAgo } from '../api.js';
-import { useAsync, Loading, ErrorBox, VerifyBadge, taskTypeLabel } from './common.jsx';
+import { useAsync, Loading, ErrorBox, VerifyBadge, taskTypeLabel, NsBadge } from './common.jsx';
 import { useGuestNames } from '../guestNames.js';
 import { Icon } from './icons.jsx';
 import { AreaChart, Donut } from './charts.jsx';
@@ -219,7 +219,7 @@ export default function Dashboard({ goTo, user }) {
                         <span className="badge muted plain">{b.type}</span> <strong>{b.id}</strong>
                         {b.type !== 'host' && names[String(b.id)] && <span className="muted"> · {names[String(b.id)]}</span>}
                       </td>
-                      <td className="muted">{b.store}{b.ns ? <span className="badge muted plain" style={{ marginLeft: 5 }}>{b.ns}</span> : ''}</td>
+                      <td className="muted">{b.store}<NsBadge ns={b.ns} /></td>
                       <td className="num">{fmtBytes(b.size)}</td>
                       <td><VerifyBadge state={b.verify} /></td>
                       <td className="num" title={fmtDate(b.time)}>{fmtAgo(b.time)}</td>

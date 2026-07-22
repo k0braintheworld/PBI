@@ -2,6 +2,7 @@
 // Copyright (C) 2026 Jairo Alvarez Caballero ("k0bra")
 import { useEffect, useState, useCallback } from 'react';
 import { useT } from '../i18n.jsx';
+import { Icon } from './icons.jsx';
 
 /* ---- Diálogo de confirmación propio (sustituye a window.confirm, que algunos
    entornos bloquean silenciosamente) ---- */
@@ -104,6 +105,19 @@ export function VerifyBadge({ state }) {
   if (state === 'ok') return <span className="badge ok">{t('verificado')}</span>;
   if (state === 'failed') return <span className="badge err">{t('fallido')}</span>;
   return <span className="badge muted">{t('sin verificar')}</span>;
+}
+
+/** Etiqueta de namespace de PBS, claramente identificada (icono + «NS:» + tooltip). */
+export function NsBadge({ ns }) {
+  const t = useT();
+  if (!ns) return null;
+  return (
+    <span className="badge muted plain" title={t('Namespace de PBS')}
+      style={{ marginLeft: 6, display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 11 }}>
+      <Icon.layers width={11} height={11} aria-hidden="true" />
+      <span style={{ fontWeight: 600, letterSpacing: '.3px' }}>NS:</span>&nbsp;{ns}
+    </span>
+  );
 }
 
 const TASK_LABELS = {

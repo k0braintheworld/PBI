@@ -783,6 +783,7 @@ export const EN = {
   'Verificar certificado TLS (desmarcar si es autofirmado)': 'Verify TLS certificate (uncheck if self-signed)',
   'No se pudo cargar la configuración': 'Could not load the settings',
   'Notificaciones por email': 'Email notifications',
+  'Namespace de PBS': 'PBS namespace',
   'Avisar por email de nuevas versiones de PBI (con las novedades del release)': 'Email me about new PBI versions (with the release notes)',
   // --- Grupos de resumen (email agrupado) ---
   'Resumen agrupado por grupos de tareas': 'Grouped summary by task groups',
