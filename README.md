@@ -52,6 +52,7 @@ Restauración guiada a través de Proxmox VE, sin tocar la consola:
 - **VM/CT completa**: eliges máquina → punto de restauración → nodo, almacenamiento de
   discos y VMID destino, con opciones de **sobrescribir** y **arrancar tras restaurar**.
   Seguimiento del log **en vivo**.
+- **Namespaces de PBS**: PBI enumera y agrega los *namespaces* de cada datastore, así que ve las copias y calcula bien las máquinas con/sin copia aunque organices los backups en namespaces; los borrados se dirigen al namespace correcto.
 - **Ficheros (granular)**: navegas por el interior del backup y descargas archivos o
   carpetas concretas (ZIP), con **buscador** dentro de la carpeta y **selección múltiple**
   para descargar varios a la vez. El primer acceso a un backup (PVE monta una VM auxiliar)

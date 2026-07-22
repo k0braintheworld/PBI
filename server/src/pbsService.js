@@ -44,8 +44,38 @@ export async function getDatastoreStatus(auth, store) {
   return pbsCall(auth, { path: `/admin/datastore/${encodeURIComponent(store)}/status` });
 }
 
+/**
+ * Namespaces de un datastore (incluye SIEMPRE el raíz ''). PBS solo devuelve el
+ * namespace raíz si no se le pasa `ns`, así que hay que enumerarlos y consultar
+ * cada uno. En PBS sin namespaces (o sin el endpoint) cae a solo el raíz.
+ */
+export async function listNamespaces(auth, store) {
+  const base = `/admin/datastore/${encodeURIComponent(store)}/namespace`;
+  let res;
+  try { res = await pbsCall(auth, { path: base, query: { 'max-depth': 7 } }); }
+  catch { try { res = await pbsCall(auth, { path: base }); } catch { return ['']; } }
+  const list = Array.isArray(res) ? res.map((n) => n?.ns ?? '') : [];
+  return [...new Set(['', ...list])];
+}
+
+/** Snapshots de UN namespace concreto; cada snapshot se etiqueta con su `ns`. */
+async function snapshotsInNs(auth, store, ns) {
+  const snaps = await pbsCall(auth, {
+    path: `/admin/datastore/${encodeURIComponent(store)}/snapshots`,
+    query: ns ? { ns } : undefined,
+  });
+  return Array.isArray(snaps) ? snaps.map((s) => ({ ...s, ns: ns || '' })) : [];
+}
+
+/**
+ * Snapshots de un datastore agregando TODOS sus namespaces. Cada snapshot lleva
+ * su `ns` (para poder distinguir grupos con el mismo VMID en namespaces distintos
+ * y para dirigir los borrados al namespace correcto).
+ */
 export async function listSnapshots(auth, store) {
-  return pbsCall(auth, { path: `/admin/datastore/${encodeURIComponent(store)}/snapshots` });
+  const nss = await listNamespaces(auth, store);
+  const per = await Promise.all(nss.map((ns) => snapshotsInNs(auth, store, ns).catch(() => [])));
+  return per.flat();
 }
 
 /**
@@ -80,42 +110,48 @@ export async function getBackupGroups(auth) {
   const datastores = await listDatastores(auth);
   const out = [];
   for (const ds of datastores) {
-    const snaps = await listSnapshots(auth, ds.store).catch(() => []);
-    // Agregados por grupo (tamaño total, alguno protegido)
-    const agg = new Map();
-    for (const s of snaps) {
-      const k = `${s['backup-type']}/${s['backup-id']}`;
-      const a = agg.get(k) || { size: 0, protected: false };
-      a.size += s.size || 0;
-      if (s.protected) a.protected = true;
-      agg.set(k, a);
-    }
-    const groups = await pbsCall(auth, { path: `/admin/datastore/${encodeURIComponent(ds.store)}/groups` }).catch(() => []);
-    for (const g of groups) {
-      const a = agg.get(`${g['backup-type']}/${g['backup-id']}`) || {};
-      out.push({
-        store: ds.store, type: g['backup-type'], id: String(g['backup-id']),
-        count: g['backup-count'], last: g['last-backup'], owner: g.owner || '',
-        size: a.size || 0, protected: !!a.protected,
-      });
+    const nss = await listNamespaces(auth, ds.store);
+    for (const ns of nss) {
+      const snaps = await snapshotsInNs(auth, ds.store, ns).catch(() => []);
+      // Agregados por grupo dentro de este namespace (tamaño total, alguno protegido)
+      const agg = new Map();
+      for (const s of snaps) {
+        const k = `${s['backup-type']}/${s['backup-id']}`;
+        const a = agg.get(k) || { size: 0, protected: false };
+        a.size += s.size || 0;
+        if (s.protected) a.protected = true;
+        agg.set(k, a);
+      }
+      const groups = await pbsCall(auth, {
+        path: `/admin/datastore/${encodeURIComponent(ds.store)}/groups`,
+        query: ns ? { ns } : undefined,
+      }).catch(() => []);
+      for (const g of groups) {
+        const a = agg.get(`${g['backup-type']}/${g['backup-id']}`) || {};
+        out.push({
+          store: ds.store, ns: ns || '', type: g['backup-type'], id: String(g['backup-id']),
+          count: g['backup-count'], last: g['last-backup'], owner: g.owner || '',
+          size: a.size || 0, protected: !!a.protected,
+        });
+      }
     }
   }
   return out;
 }
 
-export async function deleteBackupGroup(auth, store, type, id) {
+export async function deleteBackupGroup(auth, store, type, id, ns) {
   return pbsCall(auth, {
     method: 'DELETE',
     path: `/admin/datastore/${encodeURIComponent(store)}/groups`,
-    query: { 'backup-type': type, 'backup-id': id },
+    query: { 'backup-type': type, 'backup-id': id, ...(ns ? { ns } : {}) },
   });
 }
 
-export async function deleteSnapshotItem(auth, store, type, id, time) {
+export async function deleteSnapshotItem(auth, store, type, id, time, ns) {
   return pbsCall(auth, {
     method: 'DELETE',
     path: `/admin/datastore/${encodeURIComponent(store)}/snapshots`,
-    query: { 'backup-type': type, 'backup-id': id, 'backup-time': time },
+    query: { 'backup-type': type, 'backup-id': id, 'backup-time': time, ...(ns ? { ns } : {}) },
   });
 }
 
@@ -201,10 +237,10 @@ export async function getDashboard(auth) {
     for (const s of snaps) allSnaps.push({ ...s, store: ds.store });
   }
 
-  // --- Grupos de backup (último snapshot por type/id/store) ---
+  // --- Grupos de backup (último snapshot por store/namespace/type/id) ---
   const groups = new Map();
   for (const s of allSnaps) {
-    const k = `${s.store}/${s['backup-type']}/${s['backup-id']}`;
+    const k = `${s.store}/${s.ns || ''}/${s['backup-type']}/${s['backup-id']}`;
     const prev = groups.get(k);
     if (!prev || (s['backup-time'] || 0) > (prev['backup-time'] || 0)) groups.set(k, s);
   }
@@ -218,6 +254,7 @@ export async function getDashboard(auth) {
   const lastBackups = [...groups.values()]
     .map((s) => ({
       store: s.store,
+      ns: s.ns || '',
       type: s['backup-type'],
       id: s['backup-id'],
       time: s['backup-time'],

@@ -49,6 +49,7 @@ status and size. **Encrypted** column with a 🔒 badge per snapshot (read from 
 Guided restore through Proxmox VE, without touching the console:
 - **Full VM/CT**: pick the machine → restore point → target node, disk storage and
   VMID, with **overwrite** and **start after restore** options. **Live** task log.
+- **PBS namespaces**: PBI enumerates and aggregates each datastore's namespaces, so it sees backups and computes protected/unprotected machines correctly even when you organise backups into namespaces; deletions target the right namespace.
 - **Files (granular)**: browse inside the backup and download specific files or folders
   (ZIP), with a **search box** within the folder and **multi-select** to download several
   at once. The first access to a backup (PVE boots a helper VM) has a **generous timeout**

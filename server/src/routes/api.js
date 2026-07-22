@@ -181,18 +181,18 @@ apiRouter.get('/cleanup/groups', wrap(async (req, res) => {
 }));
 
 apiRouter.post('/cleanup/delete-group', requireOperator, wrap(async (req, res) => {
-  const { store, type, id } = req.body || {};
+  const { store, type, id, ns } = req.body || {};
   if (!store || !type || !id) return res.status(400).json({ error: 'Faltan store, type o id' });
-  const r = await pbs.deleteBackupGroup(req.auth, store, type, id);
-  audit(req, 'cleanup.delete_group', `${store}/${type}/${id}`, 'ok');
+  const r = await pbs.deleteBackupGroup(req.auth, store, type, id, ns);
+  audit(req, 'cleanup.delete_group', `${store}/${ns ? `${ns}/` : ''}${type}/${id}`, 'ok');
   res.json(r);
 }));
 
 apiRouter.post('/cleanup/delete-snapshot', requireOperator, wrap(async (req, res) => {
-  const { store, type, id, time } = req.body || {};
+  const { store, type, id, time, ns } = req.body || {};
   if (!store || !type || !id || !time) return res.status(400).json({ error: 'Faltan parámetros' });
-  const r = await pbs.deleteSnapshotItem(req.auth, store, type, id, time);
-  audit(req, 'cleanup.delete_snapshot', `${store}/${type}/${id}@${time}`, 'ok');
+  const r = await pbs.deleteSnapshotItem(req.auth, store, type, id, time, ns);
+  audit(req, 'cleanup.delete_snapshot', `${store}/${ns ? `${ns}/` : ''}${type}/${id}@${time}`, 'ok');
   res.json(r);
 }));
 

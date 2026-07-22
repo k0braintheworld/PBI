@@ -7,7 +7,7 @@ import { Icon } from './icons.jsx';
 import { useT } from '../i18n.jsx';
 import ScheduleField from './ScheduleField.jsx';
 
-const keyOf = (g) => `${g.store}/${g.type}/${g.id}`;
+const keyOf = (g) => `${g.store}/${g.ns || ''}/${g.type}/${g.id}`;
 
 /** Limpieza: borrar grupos de backup que ya no se necesitan (huérfanos, etc.). */
 export default function Cleanup() {
@@ -42,7 +42,7 @@ export default function Cleanup() {
     setBusy(true); setMsg(null);
     let ok = 0; const errs = [];
     for (const g of selGroups) {
-      try { await api.cleanupDeleteGroup({ store: g.store, type: g.type, id: g.id }); ok += 1; }
+      try { await api.cleanupDeleteGroup({ store: g.store, type: g.type, id: g.id, ns: g.ns }); ok += 1; }
       catch (e) { errs.push(`${g.type}/${g.id}: ${e.message}`); }
     }
     setBusy(false); setConfirm(false); setConfirmText(''); setSel(new Set());
@@ -107,7 +107,7 @@ export default function Cleanup() {
                       : g.orphan === false ? <span className="badge ok">{t('activa')}</span>
                         : <span className="badge muted">—</span>}
                 </td>
-                <td className="mono" style={{ fontSize: 12 }}>{g.store}</td>
+                <td className="mono" style={{ fontSize: 12 }}>{g.store}{g.ns ? <span className="badge muted plain" style={{ marginLeft: 5 }} title={t('Namespace')}>{g.ns}</span> : ''}</td>
                 <td className="num">{g.count}</td>
                 <td className="num">{fmtBytes(g.size)}</td>
                 <td className="num" title={fmtDate(g.last)}>{fmtAgo(g.last)}</td>
@@ -229,7 +229,8 @@ function SnapshotModal({ group, onClose, onChanged }) {
   const selectOld = () => setSel(new Set(list.filter((s) => !s.protected && isOld(s)).map((s) => s['backup-time'])));
 
   const list = (snaps.data || [])
-    .filter((s) => s['backup-type'] === group.type && String(s['backup-id']) === group.id)
+    .filter((s) => s['backup-type'] === group.type && String(s['backup-id']) === group.id
+      && String(s.ns || '') === String(group.ns || '')) // mismo namespace que el grupo
     .sort((a, b) => (b['backup-time'] || 0) - (a['backup-time'] || 0));
   const selList = list.filter((s) => sel.has(s['backup-time']));
   const selSize = selList.reduce((a, s) => a + (s.size || 0), 0);
@@ -241,7 +242,7 @@ function SnapshotModal({ group, onClose, onChanged }) {
     if (!(await confirmDialog({ message: `${t('¿Eliminar')} ${selList.length} ${t('copia(s) de')} ${group.type}/${group.id}? ${t('Es irreversible.')}`, danger: true, confirmLabel: t('Eliminar') }))) return;
     setBusy(true); let ok = 0; const errs = [];
     for (const s of selList) {
-      try { await api.cleanupDeleteSnapshot({ store: group.store, type: group.type, id: group.id, time: s['backup-time'] }); ok += 1; }
+      try { await api.cleanupDeleteSnapshot({ store: group.store, type: group.type, id: group.id, time: s['backup-time'], ns: group.ns }); ok += 1; }
       catch (e) { errs.push(e.message); }
     }
     setBusy(false); setSel(new Set());
