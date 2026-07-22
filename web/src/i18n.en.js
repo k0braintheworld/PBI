@@ -784,6 +784,9 @@ export const EN = {
   'No se pudo cargar la configuración': 'Could not load the settings',
   'Notificaciones por email': 'Email notifications',
   'Namespace de PBS': 'PBS namespace',
+  'Namespace': 'Namespace',
+  'Todos los namespaces': 'All namespaces',
+  'El almacenamiento y el calendario reflejan el datastore completo.': 'Storage and calendar reflect the whole datastore.',
   'Avisar por email de nuevas versiones de PBI (con las novedades del release)': 'Email me about new PBI versions (with the release notes)',
   // --- Grupos de resumen (email agrupado) ---
   'Resumen agrupado por grupos de tareas': 'Grouped summary by task groups',

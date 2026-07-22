@@ -12,7 +12,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  listNamespaces, listSnapshots, getBackupGroups, deleteSnapshotItem, deleteBackupGroup,
+  listNamespaces, listSnapshots, getBackupGroups, deleteSnapshotItem, deleteBackupGroup, getDashboard,
 } from '../src/pbsService.js';
 
 let hasOpenssl = true;
@@ -56,6 +56,9 @@ function fakePbs(key, cert) {
     }
     if (p.endsWith('/snapshots') && req.method === 'GET') return send(SNAPS[ns] || []);
     if (p.endsWith('/groups') && req.method === 'GET') return send(GROUPS[ns] || []);
+    if (p.endsWith('/status')) return send({ total: 1000, used: 100, avail: 900 });
+    if (p.endsWith('/gc')) return send({ 'index-data-bytes': 0, 'disk-bytes': 0 });
+    if (p.endsWith('/tasks')) return send([]);
     if (p.endsWith('/admin/datastore')) return send([{ store: 'store1' }]);
     if (req.method === 'DELETE') return send(null); // borrado ok
     return send(null);
@@ -121,6 +124,18 @@ test('deleteSnapshotItem y deleteBackupGroup dirigen el borrado al namespace cor
   requests = [];
   await deleteSnapshotItem(auth, 'store1', 'vm', '100', 1000, '');
   assert.ok(!requests.some((r) => r.url.includes('ns=')), 'el borrado en raíz no debe llevar ns');
+});
+
+test('getDashboard: sin filtro ve todos los namespaces; con filtro solo ese', async (t) => {
+  if (skipIfNoSsl(t)) return;
+  nsMode = 'full';
+  const all = await getDashboard(auth, null);
+  assert.deepEqual([...all.namespaces].sort(), ['', 'clienteA', 'clienteB']);
+  assert.deepEqual(all.lastBackups.map((b) => b.id).sort(), ['100', '200', '300']);
+  const only = await getDashboard(auth, 'clienteA');
+  assert.equal(only.selectedNs, 'clienteA');
+  assert.deepEqual(only.lastBackups.map((b) => b.id), ['200']); // solo la copia de ese namespace
+  assert.deepEqual([...only.namespaces].sort(), ['', 'clienteA', 'clienteB']); // el selector sigue completo
 });
 
 test('PBS sin namespaces (endpoint ausente): solo raíz, comportamiento clásico', async (t) => {

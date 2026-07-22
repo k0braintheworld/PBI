@@ -205,7 +205,7 @@ export async function setNotificationMatcherDisabled(auth, name, disabled) {
  * Devuelve contadores, calendario de copias, almacenamiento, últimos backups,
  * registros recientes y tendencia de transferencia en una sola llamada.
  */
-export async function getDashboard(auth) {
+export async function getDashboard(auth, nsFilter = null) {
   const datastores = await listDatastores(auth);
 
   // Los datastores se consultan en paralelo (antes era secuencial).
@@ -237,9 +237,17 @@ export async function getDashboard(auth) {
     for (const s of snaps) allSnaps.push({ ...s, store: ds.store });
   }
 
+  // Lista de namespaces presentes (para el selector del panel) y, si se ha pedido
+  // uno concreto, se filtran las vistas derivadas de snapshots (grupos, últimas
+  // copias, contadores, transferencia, sin proteger). El almacenamiento (donuts) y
+  // el calendario se mantienen a nivel de datastore/global (el espacio físico es del
+  // datastore, no del namespace). `nsFilter` null = todos; '' = raíz; nombre = ese ns.
+  const namespaces = [...new Set(allSnaps.map((s) => s.ns || ''))].sort();
+  const snaps = nsFilter == null ? allSnaps : allSnaps.filter((s) => (s.ns || '') === nsFilter);
+
   // --- Grupos de backup (último snapshot por store/namespace/type/id) ---
   const groups = new Map();
-  for (const s of allSnaps) {
+  for (const s of snaps) {
     const k = `${s.store}/${s.ns || ''}/${s['backup-type']}/${s['backup-id']}`;
     const prev = groups.get(k);
     if (!prev || (s['backup-time'] || 0) > (prev['backup-time'] || 0)) groups.set(k, s);
@@ -322,7 +330,7 @@ export async function getDashboard(auth) {
 
   // --- Tendencia de transferencia: bytes de snapshots por día (14 días) ---
   const transferMap = new Map();
-  for (const s of allSnaps) {
+  for (const s of snaps) {
     if (!s['backup-time']) continue;
     const key = new Date(s['backup-time'] * 1000).toISOString().slice(0, 10);
     transferMap.set(key, (transferMap.get(key) || 0) + (s.size || 0));
@@ -338,11 +346,13 @@ export async function getDashboard(auth) {
 
   return {
     generatedAt: new Date().toISOString(),
+    namespaces,
+    selectedNs: nsFilter,
     counters: {
       datastores: datastores.length,
       groups: { ...byType, total: groups.size },
-      snapshots: allSnaps.length,
-      failedVerifications: allSnaps.filter((s) => s.verification?.state === 'failed').length,
+      snapshots: snaps.length,
+      failedVerifications: snaps.filter((s) => s.verification?.state === 'failed').length,
     },
     storage,
     calendar,

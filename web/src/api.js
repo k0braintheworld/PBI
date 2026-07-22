@@ -82,7 +82,8 @@ export const api = {
   // General
   version: () => req('GET', '/version'),
   overview: () => req('GET', '/overview'),
-  dashboard: () => req('GET', '/dashboard'),
+  // ns: null/undefined = todos los namespaces; '' = raíz; nombre = ese namespace.
+  dashboard: (ns) => req('GET', ns == null ? '/dashboard' : `/dashboard?ns=${encodeURIComponent(ns)}`),
   excludedVms: () => req('GET', '/excluded-vms'),
   excludedVmAdd: (body) => req('POST', '/excluded-vms', body),
   excludedVmRemove: (vmid) => req('DELETE', `/excluded-vms/${encodeURIComponent(vmid)}`),

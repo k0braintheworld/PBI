@@ -36,8 +36,11 @@ apiRouter.get('/overview', wrap(async (req, res) => {
 const dashCache = createSwrCache({ freshMs: 8000, staleMs: 60000 });
 
 apiRouter.get('/dashboard', wrap(async (req, res) => {
-  const dash = await dashCache.get(req.pbsHost.id, async () => {
-    const d = await pbs.getDashboard(req.auth);
+  // ns ausente = todos los namespaces; ns='' = raíz; ns=<nombre> = ese namespace.
+  const nsFilter = req.query.ns === undefined ? null : String(req.query.ns);
+  const cacheKey = `${req.pbsHost.id}|${nsFilter === null ? '*' : nsFilter}`;
+  const dash = await dashCache.get(cacheKey, async () => {
+    const d = await pbs.getDashboard(req.auth, nsFilter);
     // Máquinas de PVE sin ninguna copia en este PBS (excluye plantillas y las
     // marcadas como "sin copia necesaria").
     try {

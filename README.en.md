@@ -35,7 +35,7 @@ machines** (with their names) and you can **click one to jump straight to its re
 NAS usage and the total logical size of all backups with the deduplication factor); an
 **unprotected machines** warning (Proxmox VE VMs with no backup in PBS); latest backups;
 recent activity; and a daily transfer trend. The **week start** (Monday/Sunday) is
-configurable. The panel uses a **short cache with background refresh** per server: if PBS
+configurable. If PBS uses **namespaces**, a **selector** lets you scope the panel to a specific namespace or view all. The panel uses a **short cache with background refresh** per server: if PBS
 is slow (e.g. during a backup) it shows the last known state instantly and updates it when
 the data arrives, instead of getting stuck "loading".
 

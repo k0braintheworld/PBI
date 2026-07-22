@@ -11,7 +11,8 @@ import { useT } from '../i18n.jsx';
 /** Dashboard estilo Active Backup / Veeam: visión general densa y profesional. */
 export default function Dashboard({ goTo, user }) {
   const t = useT();
-  const { loading, error, data, reload } = useAsync(() => api.dashboard(), []);
+  const [ns, setNs] = useState(null); // null = todos los namespaces; '' = raíz; nombre = ese ns
+  const { loading, error, data, reload } = useAsync(() => api.dashboard(ns), [ns]);
   const names = useGuestNames();
   const [month, setMonth] = useState(() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth() }; });
   const [excluded, setExcluded] = useState([]);
@@ -47,6 +48,22 @@ export default function Dashboard({ goTo, user }) {
 
   return (
     <div className="rise">
+      {/* ---- Selector de namespace (solo si el PBS usa namespaces) ---- */}
+      {data.namespaces && data.namespaces.length > 1 && (
+        <div className="flex-between" style={{ marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text-2)' }}>
+            <Icon.layers width={15} height={15} /> {t('Namespace')}
+            <select className="input" style={{ width: 'auto', minWidth: 180 }}
+              value={ns === null ? '__ALL__' : ns}
+              onChange={(e) => setNs(e.target.value === '__ALL__' ? null : e.target.value)}>
+              <option value="__ALL__">{t('Todos los namespaces')}</option>
+              {data.namespaces.map((n) => <option key={n || '__root__'} value={n}>{n === '' ? t('raíz') : n}</option>)}
+            </select>
+          </label>
+          {ns !== null && <span className="muted" style={{ fontSize: 11.5 }}>{t('El almacenamiento y el calendario reflejan el datastore completo.')}</span>}
+        </div>
+      )}
+
       {/* ---- Tira de KPIs ---- */}
       <div className="grid cols-4" style={{ marginBottom: 16 }}>
         <Kpi icon="database" tone="brand" value={counters.datastores} label={t('Datastores')} />
